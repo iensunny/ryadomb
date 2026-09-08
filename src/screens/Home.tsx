@@ -1,31 +1,33 @@
 import { PlusIcon } from "../icons";
 import type { Story } from "../stories";
+import { StoryCard } from "../ui/StoryCard";
 
 type Props = {
+  familyName: string;
   stories: Story[];
   onNewStory: () => void;
   onOpenStory: (storyId: string) => void;
   onInvite: () => void;
 };
 
-function badge(story: Story) {
-  if (story.kind === "audio") return `Аудио · ${story.duration ?? "0:00"}`;
-  if (story.kind === "photo") return "Фото";
-  return "Текст";
-}
-
-export function Home({ stories, onNewStory, onOpenStory, onInvite }: Props) {
+export function Home({
+  familyName,
+  stories,
+  onNewStory,
+  onOpenStory,
+  onInvite,
+}: Props) {
   return (
     <section className="screen screen-scroll with-nav">
       <header className="home-head">
-        <span className="kicker quiet">Семья Ивановых</span>
-        <h1>Семейные истории</h1>
+        <span className="kicker quiet">{familyName}</span>
+        <h1>Истории</h1>
       </header>
 
       <button className="cta-card" onClick={onNewStory}>
         <div>
-          <h2>Записать историю</h2>
-          <p>Голосом, фото или текстом</p>
+          <h2>Добавить историю</h2>
+          <p>Текстом или с фотографией</p>
         </div>
         <span className="plus">
           <PlusIcon />
@@ -35,9 +37,9 @@ export function Home({ stories, onNewStory, onOpenStory, onInvite }: Props) {
       {stories.length === 0 ? (
         <div className="empty-family">
           <h2>Начните семейную историю</h2>
-          <p>Здесь появятся записи ваших близких.</p>
+          <p>Здесь появятся истории ваших близких.</p>
           <button className="btn-primary" onClick={onNewStory}>
-            Записать первую историю
+            Добавить первую историю
           </button>
           <button className="secondary-action" onClick={onInvite}>
             Пригласить родных
@@ -45,37 +47,14 @@ export function Home({ stories, onNewStory, onOpenStory, onInvite }: Props) {
         </div>
       ) : (
         <>
-          <p className="section-label">Что нового в семье</p>
+          <p className="section-label">Новое</p>
           <div className="story-list">
             {stories.map((story) => (
-              <button
+              <StoryCard
                 key={story.id}
-                className={story.photoUrl ? "story-card photo-card" : "story-card"}
-                onClick={() => onOpenStory(story.id)}
-              >
-                {story.photoUrl ? (
-                  <>
-                    <img className="story-photo" src={story.photoUrl} alt="" />
-                    <div className="story-body">
-                      <div className="meta">
-                        <span className="badge">{badge(story)}</span>
-                        <span className="when">{story.when}</span>
-                      </div>
-                      <h3>{story.title}</h3>
-                      <p className="author">{story.author}</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="meta">
-                      <span className="badge">{badge(story)}</span>
-                      <span className="when">{story.when}</span>
-                    </div>
-                    <h3>{story.title}</h3>
-                    <p className="author">{story.author}</p>
-                  </>
-                )}
-              </button>
+                story={story}
+                onOpen={() => onOpenStory(story.id)}
+              />
             ))}
           </div>
         </>

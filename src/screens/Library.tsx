@@ -1,31 +1,45 @@
 import { useState } from "react";
 import { fairyTales, rhymes, type Story } from "../stories";
+import { StoryCard } from "../ui/StoryCard";
 
 type Tab = "ours" | "rhymes" | "tales";
 
 type Props = {
   stories: Story[];
   selectedIds: string[];
+  activeBookTitle: string;
+  onNewStory: () => void;
   onOpenStory: (storyId: string) => void;
   onToggleBook: (storyId: string) => void;
 };
 
-function storyBadge(story: Story) {
-  if (story.kind === "audio") return `Аудио · ${story.duration ?? "0:00"}`;
-  if (story.kind === "photo") return "Фото";
-  return "Текст";
-}
-
-export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Props) {
+export function Library({
+  stories,
+  selectedIds,
+  activeBookTitle,
+  onNewStory,
+  onOpenStory,
+  onToggleBook,
+}: Props) {
   const [tab, setTab] = useState<Tab>("ours");
+  const counts: Record<Tab, number> = {
+    ours: stories.length,
+    rhymes: rhymes.length,
+    tales: fairyTales.length,
+  };
 
   return (
     <section className="screen screen-scroll with-nav">
       <header className="page-head">
         <p className="kicker">Истории</p>
-        <h1>Архив семьи и общие сказки</h1>
-        <p>Здесь можно найти семейные записи, потешки и сказки для книги.</p>
+        <h1>Архив семьи</h1>
+        <p>Истории, потешки и сказки — всё, что хочется сохранить.</p>
       </header>
+
+      <button className="library-create" onClick={onNewStory}>
+        <span>+</span>
+        Добавить историю
+      </button>
 
       <div className="tabs library-tabs" role="tablist">
         {(
@@ -43,6 +57,7 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
             onClick={() => setTab(value)}
           >
             {label}
+            <span className="tab-count">{counts[value]}</span>
           </button>
         ))}
       </div>
@@ -50,18 +65,11 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
       {tab === "ours" && (
         <div className="story-list">
           {stories.map((story) => (
-            <button
-              className="library-row"
+            <StoryCard
               key={story.id}
-              onClick={() => onOpenStory(story.id)}
-            >
-              <div>
-                <span className="badge">{storyBadge(story)}</span>
-                <h3>{story.title}</h3>
-                <p>{story.author}</p>
-              </div>
-              <span className="row-arrow">›</span>
-            </button>
+              story={story}
+              onOpen={() => onOpenStory(story.id)}
+            />
           ))}
         </div>
       )}
@@ -70,8 +78,7 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
         <div className="story-list">
           {rhymes.map((item) => (
             <article className="library-row" key={item.id}>
-              <div>
-                <span className="badge">Потешка</span>
+              <div className="library-row-copy">
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
               </div>
@@ -79,7 +86,9 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
                 className="small-action"
                 onClick={() => onToggleBook(`rhyme-${item.id}`)}
               >
-                {selectedIds.includes(`rhyme-${item.id}`) ? "В книге" : "В книгу"}
+                {selectedIds.includes(`rhyme-${item.id}`)
+                  ? `В «${activeBookTitle}»`
+                  : "Добавить в книгу"}
               </button>
             </article>
           ))}
@@ -90,8 +99,7 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
         <div className="story-list">
           {fairyTales.map((item) => (
             <article className="library-row" key={item.id}>
-              <div>
-                <span className="badge">Сказка</span>
+              <div className="library-row-copy">
                 <h3>{item.title}</h3>
                 <p>{item.body}</p>
               </div>
@@ -99,7 +107,9 @@ export function Library({ stories, selectedIds, onOpenStory, onToggleBook }: Pro
                 className="small-action"
                 onClick={() => onToggleBook(`tale-${item.id}`)}
               >
-                {selectedIds.includes(`tale-${item.id}`) ? "В книге" : "В книгу"}
+                {selectedIds.includes(`tale-${item.id}`)
+                  ? `В «${activeBookTitle}»`
+                  : "Добавить в книгу"}
               </button>
             </article>
           ))}

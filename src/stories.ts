@@ -1,6 +1,10 @@
 export type StoryKind = "audio" | "text" | "photo";
 export type CoverKind = "linen" | "dark" | "walnut";
 
+export type StoryFormat = {
+  dropCap?: boolean;
+};
+
 export type Story = {
   id: string;
   kind: StoryKind;
@@ -10,20 +14,50 @@ export type Story = {
   duration?: string;
   body?: string;
   photoUrl?: string;
+  photos?: Record<string, string>;
+  format?: StoryFormat;
   selected?: boolean;
 };
 
+export function storyPhotoTokenRe() {
+  return /\[\[photo:([^\]]+)\]\]/g;
+}
+
+export function firstStoryPhoto(
+  story: Pick<Story, "body" | "photoUrl" | "photos">,
+) {
+  const photos = story.photos ?? {};
+  if (story.body) {
+    for (const match of story.body.matchAll(storyPhotoTokenRe())) {
+      const url = photos[match[1]];
+      if (url) return url;
+    }
+  }
+  return Object.values(photos)[0] ?? story.photoUrl;
+}
+
+export function storyPlainExcerpt(body?: string, max = 86) {
+  const text = (body ?? "")
+    .replace(storyPhotoTokenRe(), " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, max) || "Семейная история";
+}
+
+export function storyKindLabel(story: Story) {
+  if (story.kind === "audio") return `Аудио · ${story.duration ?? "0:00"}`;
+  if (firstStoryPhoto(story)) return "С фото";
+  return "Текст";
+}
+
+export type Book = {
+  id: string;
+  title: string;
+  cover: CoverKind;
+  storyIds: string[];
+};
+
 export const seedStories: Story[] = [
-  {
-    id: "1",
-    kind: "audio",
-    title: "Колыбельная бабушки Вали",
-    author: "Бабушка Валя",
-    when: "вчера",
-    duration: "2:14",
-    body: "Спи, моя радость, усни, в доме погасли огни...",
-    selected: true,
-  },
   {
     id: "2",
     kind: "text",
@@ -34,24 +68,32 @@ export const seedStories: Story[] = [
     selected: true,
   },
   {
-    id: "3",
-    kind: "audio",
-    title: "Сказка про лису и зайца",
-    author: "Дедушка Игорь",
-    when: "на прошлой неделе",
-    duration: "5:40",
-    body: "Жили-были лиса да заяц. У лисы была избушка ледяная, а у зайца лубяная...",
-  },
-  {
     id: "4",
-    kind: "photo",
+    kind: "text",
     title: "Первый снег в Нягани",
     author: "Папа",
     when: "в ноябре",
-    body: "Снег выпал так тихо, что утром двор казался новой белой страницей.",
+    body: "Снег выпал так тихо, что утром двор казался новой белой страницей.\n\n[[photo:snow]]\n\nМы вышли во двор в валенках и долго стояли, боясь ступить на чистый снег.",
     photoUrl:
       "https://images.unsplash.com/photo-1483664852095-d6cc6870702d?auto=format&fit=crop&w=900&q=80",
+    photos: {
+      snow: "https://images.unsplash.com/photo-1483664852095-d6cc6870702d?auto=format&fit=crop&w=900&q=80",
+    },
     selected: true,
+  },
+];
+
+export const emptyBook: Book = {
+  id: "book-family",
+  title: "Наша семейная книга",
+  cover: "linen",
+  storyIds: [],
+};
+
+export const seedBooks: Book[] = [
+  {
+    ...emptyBook,
+    storyIds: seedStories.map((story) => story.id),
   },
 ];
 

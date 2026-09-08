@@ -1,36 +1,59 @@
 import { useState } from "react";
+import { bridge } from "../vk/bridge";
+import { inviteLink } from "../vk/session";
 
 type Props = {
+  familyName: string;
+  appId?: number;
   onClose: () => void;
 };
 
-export function InviteModal({ onClose }: Props) {
+export function InviteModal({ familyName, appId, onClose }: Props) {
   const [copied, setCopied] = useState(false);
-  const link = "https://vk.com/appXXXX#join_8f3k2p";
+  const [shared, setShared] = useState(false);
+  const link = inviteLink(appId, "join_family-home");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      // ignore
+    }
+    setCopied(true);
+  }
+
+  async function share() {
+    try {
+      await bridge.send("VKWebAppShare", { link });
+      setShared(true);
+    } catch {
+      await copy();
+    }
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="invite-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <section
+        className="invite-modal"
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+      >
         <p className="kicker">Приглашение</p>
-        <h2>Пригласить в семью Ивановых</h2>
+        <h2>Пригласить в {familyName}</h2>
         <p>
-          Тестовая ссылка для родных. В реальном приложении она добавит человека
-          в семью после входа через VK или ОК.
+          Родные откроют ссылку во ВКонтакте. Hash после # обработает
+          VKWebAppChangeFragment, вход — их профиль VK.
         </p>
         <code>{link}</code>
         {copied && <p className="copy-done">Ссылка скопирована</p>}
+        {shared && <p className="copy-done">Открыли окно VK</p>}
         <div className="modal-actions-row">
-          <button
-            className="secondary-action"
-            onClick={() => {
-              navigator.clipboard?.writeText(link);
-              setCopied(true);
-            }}
-          >
+          <button className="secondary-action" onClick={copy}>
             Копировать
           </button>
-          <button className="secondary-action" onClick={() => setCopied(true)}>
-            Поделиться
+          <button className="secondary-action" onClick={share}>
+            Поделиться в VK
           </button>
         </div>
         <button className="btn-primary" onClick={onClose}>

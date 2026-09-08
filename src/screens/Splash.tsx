@@ -1,19 +1,16 @@
-type Props = {
-  onDone: () => void;
-};
-
-export function Splash({ onDone }: Props) {
+export function Splash() {
   return (
-    <section className="splash-screen" onAnimationEnd={onDone}>
-      <p className="splash-kicker">Мобильное приложение</p>
+    <section className="splash-screen">
+      <img
+        className="splash-partner-logo"
+        src="/fond-zashity-detei-logo.png"
+        alt="Фонд защиты детей"
+      />
       <h1>
         Семейные
         <br />
         истории
       </h1>
-      <p className="splash-copy">
-        Проверяем вход и открываем вашу семью
-      </p>
       <span className="loader" aria-label="Загрузка" />
     </section>
   );

@@ -1,21 +1,42 @@
-import { BackIcon, CameraIcon, MicIcon } from "../icons";
-import type { Story } from "../stories";
+import { useEffect, useRef, useState } from "react";
+import { BackIcon, MicIcon } from "../icons";
+import { storyKindLabel, type Story } from "../stories";
+import { FormattedStoryBody } from "../ui/FormattedStoryBody";
 
 type Props = {
   story: Story;
   inBook: boolean;
+  bookTitle: string;
   onBack: () => void;
   onToggleBook: (storyId: string) => void;
   onEdit: () => void;
+  onDelete: (storyId: string) => void;
 };
 
-function label(story: Story) {
-  if (story.kind === "audio") return `Аудио · ${story.duration ?? "0:00"}`;
-  if (story.kind === "photo") return "Фото";
-  return "Текст";
-}
+export function StoryDetail({
+  story,
+  inBook,
+  bookTitle,
+  onBack,
+  onToggleBook,
+  onEdit,
+  onDelete,
+}: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-export function StoryDetail({ story, inBook, onBack, onToggleBook, onEdit }: Props) {
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
+
   return (
     <section className="screen story-detail-screen">
       <header className="composer-head">
@@ -23,13 +44,35 @@ export function StoryDetail({ story, inBook, onBack, onToggleBook, onEdit }: Pro
           <BackIcon />
         </button>
         <h1>История</h1>
-        <button className="more-button" aria-label="Ещё действия">
-          ⋯
-        </button>
+        <div className="more-menu" ref={menuRef}>
+          <button
+            className="more-button"
+            aria-label="Ещё действия"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <div className="more-menu-panel" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="more-menu-danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setConfirmDelete(true);
+                }}
+              >
+                Удалить историю
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <article className="detail-card">
-        <span className="badge">{label(story)}</span>
+        <span className="badge">{storyKindLabel(story)}</span>
         <h2>{story.title}</h2>
         <p className="detail-meta">
           {story.author} · {story.when}
@@ -47,13 +90,12 @@ export function StoryDetail({ story, inBook, onBack, onToggleBook, onEdit }: Pro
           </div>
         )}
 
-        {story.photoUrl && (
-          <img className="detail-photo" src={story.photoUrl} alt="" />
-        )}
-
-        <div className="detail-text">
-          <p>{story.body ?? "Расшифровка появится здесь после обработки аудио."}</p>
-        </div>
+        <FormattedStoryBody
+          body={story.body}
+          photos={story.photos}
+          format={story.format}
+          className="detail-text"
+        />
       </article>
 
       <div className="detail-actions">
@@ -64,15 +106,37 @@ export function StoryDetail({ story, inBook, onBack, onToggleBook, onEdit }: Pro
           className="btn-primary"
           onClick={() => onToggleBook(story.id)}
         >
-          {inBook ? "Убрать из книги" : "Добавить в книгу"}
+          {inBook ? `Убрать из «${bookTitle}»` : `Добавить в «${bookTitle}»`}
         </button>
       </div>
 
-      {!story.photoUrl && (
-        <button className="attach-photo">
-          <CameraIcon />
-          <span>Добавить фото к странице книги</span>
-        </button>
+      {confirmDelete && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="invite-modal" role="dialog" aria-modal="true">
+            <p className="kicker">Удаление</p>
+            <h2>Удалить историю?</h2>
+            <p>
+              «{story.title}» исчезнет из архива и из книги. Это действие нельзя
+              отменить.
+            </p>
+            <div className="modal-actions-row">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setConfirmDelete(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => onDelete(story.id)}
+              >
+                Удалить
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </section>
   );
