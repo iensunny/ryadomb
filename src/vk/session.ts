@@ -119,6 +119,11 @@ export function isDesktopPlatform(platform: string | undefined, viewportWidth: n
   return viewportWidth >= 900;
 }
 
+function envAppId() {
+  const appId = Number(import.meta.env.VITE_VK_APP_ID);
+  return Number.isFinite(appId) && appId > 0 ? appId : undefined;
+}
+
 let cachedSession: AppSession | null = null;
 
 export async function bootSession(): Promise<AppSession> {
@@ -165,10 +170,12 @@ export function familyTitle(user: VkUserProfile) {
 }
 
 export function inviteLink(appId: number | undefined, fragment: string) {
-  if (appId) {
-    return `https://vk.com/app${appId}#${fragment}`;
+  const resolvedAppId = appId ?? envAppId();
+  const normalizedFragment = fragment.replace(/^#/, "");
+  if (resolvedAppId) {
+    return `https://vk.com/app${resolvedAppId}#${normalizedFragment}`;
   }
   const url = new URL(window.location.href);
-  url.hash = fragment;
+  url.hash = normalizedFragment;
   return url.toString();
 }

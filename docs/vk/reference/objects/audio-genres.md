@@ -1,0 +1,26 @@
+# Жанры аудиозаписей
+
+> Источник: [https://dev.vk.ru/ru/reference/objects/audio-genres](https://dev.vk.ru/ru/reference/objects/audio-genres)
+Жанр возвращается в виде числа в поле `genre` при получении информации об [аудиозаписи](reference/objects/audio). Поле `genre` может содержать следующие значения:
+
+* `1` — Rock;
+* `2` — Pop;
+* `3` — Rap & Hip-Hop;
+* `4` — Easy Listening;
+* `5` — House & Dance;
+* `6` — Instrumental;
+* `7` — Metal;
+* `21` — Alternative;
+* `8` — Dubstep;
+* `1001` — Jazz & Blues;
+* `10` — Drum & Bass;
+* `11` — Trance;
+* `12` — Chanson;
+* `13` — Ethnic;
+* `14` — Acoustic & Vocal;
+* `15` — Reggae;
+* `16` — Classical;
+* `17` — Indie Pop;
+* `19` — Speech;
+* `22` — Electropop & Disco;
+* `18` — Other.

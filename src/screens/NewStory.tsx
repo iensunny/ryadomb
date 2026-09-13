@@ -1,87 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { BackIcon } from "../icons";
-import { firstStoryPhoto, storyPhotoTokenRe, type Story } from "../stories";
+import type { Story } from "../domain/story";
+import {
+  blocksFromStory,
+  createPhotoBlock,
+  createTextBlock,
+  isPhotoBlock,
+  serializeBlocks,
+  storyPhotoTokenRe,
+  type EditorBlock,
+  type PhotoBlock,
+} from "../lib/storyFormat";
 
 type Props = {
   onBack: () => void;
   onSave: (story: Omit<Story, "id" | "author" | "when">) => void;
   initialStory?: Story;
 };
-
-type TextBlock = { type: "text"; key: string; value: string };
-type PhotoBlock = { type: "photo"; key: string; url: string };
-type EditorBlock = TextBlock | PhotoBlock;
-
-let blockSeq = 0;
-function nextKey(prefix: string) {
-  blockSeq += 1;
-  return `${prefix}-${blockSeq}`;
-}
-
-function blocksFromStory(story?: Story): EditorBlock[] {
-  const photos = { ...(story?.photos ?? {}) };
-  if (story?.photoUrl && Object.keys(photos).length === 0) {
-    photos.cover = story.photoUrl;
-  }
-
-  const source = story?.body ?? "";
-  const chunks = source.length
-    ? source.split(/(\[\[photo:[^\]]+\]\])/).filter((chunk) => chunk.length > 0)
-    : [""];
-
-  const blocks: EditorBlock[] = [];
-  for (const chunk of chunks) {
-    const photo = chunk.match(/^\[\[photo:([^\]]+)\]\]$/);
-    if (photo) {
-      const url = photos[photo[1]];
-      if (url) blocks.push({ type: "photo", key: photo[1], url });
-      continue;
-    }
-    blocks.push({
-      type: "text",
-      key: nextKey("t"),
-      value: chunk.replace(/^\n+/, "").replace(/\n+$/, ""),
-    });
-  }
-
-  if (!blocks.some((block) => block.type === "photo")) {
-    const fallback = firstStoryPhoto(story ?? {});
-    if (fallback) {
-      blocks.push({ type: "photo", key: nextKey("p"), url: fallback });
-    }
-  }
-
-  if (blocks.length === 0 || blocks[0].type !== "text") {
-    blocks.unshift({ type: "text", key: nextKey("t"), value: "" });
-  }
-  if (blocks[blocks.length - 1].type !== "text") {
-    blocks.push({ type: "text", key: nextKey("t"), value: "" });
-  }
-
-  return blocks;
-}
-
-function serializeBlocks(blocks: EditorBlock[]) {
-  const photos: Record<string, string> = {};
-  const parts: string[] = [];
-
-  for (const block of blocks) {
-    if (block.type === "text") {
-      const value = block.value.trim();
-      if (value) parts.push(value);
-      continue;
-    }
-    photos[block.key] = block.url;
-    parts.push(`[[photo:${block.key}]]`);
-  }
-
-  const photoUrl = Object.values(photos)[0];
-  return {
-    body: parts.join("\n\n"),
-    photos,
-    photoUrl,
-  };
-}
 
 export function NewStory({ onBack, onSave, initialStory }: Props) {
   const [title, setTitle] = useState(initialStory?.title ?? "");
@@ -182,7 +117,7 @@ export function NewStory({ onBack, onSave, initialStory }: Props) {
   function insertPhoto(file: File | undefined) {
     if (!file) return;
     const url = URL.createObjectURL(file);
-    const photo: PhotoBlock = { type: "photo", key: nextKey("p"), url };
+    const photo = createPhotoBlock(url);
     const key = focusedTextKey();
     const textarea = key ? textRefs.current[key] : null;
     const cursor = textarea?.selectionStart ?? textarea?.value.length ?? 0;
@@ -195,16 +130,16 @@ export function NewStory({ onBack, onSave, initialStory }: Props) {
       if (index === -1) {
         const next = [...list];
         if (next[next.length - 1]?.type !== "text") {
-          next.push({ type: "text", key: nextKey("t"), value: "" });
+          next.push(createTextBlock());
         }
         next.splice(next.length - 1, 0, photo);
         return next;
       }
       return [
         ...list.slice(0, index),
-        { type: "text", key: nextKey("t"), value: before },
+        createTextBlock(before),
         photo,
-        { type: "text", key: nextKey("t"), value: rest },
+        createTextBlock(rest),
         ...list.slice(index + 1),
       ];
     });
@@ -213,12 +148,11 @@ export function NewStory({ onBack, onSave, initialStory }: Props) {
   function removePhoto(key: string) {
     setBlocks((list) => {
       const target = list.find(
-        (block): block is PhotoBlock =>
-          block.type === "photo" && block.key === key,
+        (block): block is PhotoBlock => isPhotoBlock(block) && block.key === key,
       );
       if (target?.url.startsWith("blob:")) URL.revokeObjectURL(target.url);
       const next = list.filter((block) => block.key !== key);
-      return next.length ? next : [{ type: "text", key: nextKey("t"), value: "" }];
+      return next.length ? next : [createTextBlock()];
     });
   }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BackIcon, MicIcon } from "../icons";
-import { storyKindLabel, type Story } from "../stories";
+import type { Story } from "../domain/story";
+import { storyKindLabel } from "../lib/storyFormat";
 import { FormattedStoryBody } from "../ui/FormattedStoryBody";
 
 type Props = {

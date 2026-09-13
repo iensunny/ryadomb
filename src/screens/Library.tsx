@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { fairyTales, rhymes, type Story } from "../stories";
+import type { Story } from "../domain/story";
+import { fairyTales, rhymes } from "../fixtures/catalog";
 import { StoryCard } from "../ui/StoryCard";
 
 type Tab = "ours" | "rhymes" | "tales";

@@ -1,5 +1,6 @@
 import { Fragment } from "react";
-import type { StoryFormat } from "../stories";
+import type { StoryFormat } from "../domain/story";
+import { storyPhotoTokenSplitRe } from "../lib/storyFormat";
 
 type Props = {
   body?: string;
@@ -38,7 +39,7 @@ export function FormattedStoryBody({
   className = "",
 }: Props) {
   const source = body?.trim() || "Текст истории пока не добавлен";
-  const chunks = source.split(/(\[\[photo:[^\]]+\]\])/);
+  const chunks = source.split(storyPhotoTokenSplitRe());
   const classes = [
     "formatted-story",
     format?.dropCap ? "has-drop-cap" : "",

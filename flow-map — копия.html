@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Семейные истории — карта экранов и переходов</title>
+    <style>
+      :root {
+        --bg: #f6ede1;
+        --paper: #fffaf2;
+        --ink: #3a2417;
+        --muted: #6b5842;
+        --gold: #8a6a3f;
+        --terracotta: #b5563a;
+        --line: #dbc8ad;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 500;
+      }
+
+      .page {
+        width: 297mm;
+        min-height: 210mm;
+        padding: 14mm;
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      .cover {
+        background: var(--ink);
+        color: var(--bg);
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: 18mm;
+        align-items: center;
+      }
+
+      .cover h1 {
+        font-style: italic;
+        font-size: 46px;
+        line-height: 1.05;
+        margin-bottom: 16px;
+      }
+
+      .cover p {
+        color: #e0c8ad;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+
+      .cover .meta {
+        display: grid;
+        gap: 10px;
+        color: var(--bg);
+      }
+
+      .pill {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        border: 1px solid rgba(246, 237, 225, 0.28);
+        padding: 7px 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 10px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 10mm;
+      }
+
+      .title-row h2 {
+        font-size: 30px;
+      }
+
+      .title-row p {
+        max-width: 370px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+
+      .node {
+        min-height: 88px;
+        border-radius: 14px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        padding: 10px;
+        position: relative;
+      }
+
+      .node.dark {
+        background: var(--ink);
+        color: var(--bg);
+      }
+
+      .node.accent {
+        border-color: var(--terracotta);
+      }
+
+      .node h3 {
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .node p {
+        color: inherit;
+        opacity: 0.78;
+        line-height: 1.35;
+      }
+
+      .arrow {
+        color: var(--terracotta);
+        font-weight: 700;
+        margin-top: 8px;
+      }
+
+      .flows-list {
+        margin-top: 11mm;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .flow-note {
+        border-radius: 14px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      .flow-note b {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .flow-note p {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .screen-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 9px;
+      }
+
+      .screen-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 10px;
+        min-height: 183px;
+      }
+
+      .screen-card h3 {
+        font-size: 17px;
+        margin-bottom: 4px;
+      }
+
+      .screen-card .purpose {
+        color: var(--muted);
+        line-height: 1.35;
+        min-height: 34px;
+        margin-bottom: 8px;
+      }
+
+      .mock {
+        border-radius: 14px;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        padding: 8px;
+        min-height: 72px;
+        margin-bottom: 8px;
+      }
+
+      .mock.dark {
+        background: var(--ink);
+        color: var(--bg);
+      }
+
+      .mock-title {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 15px;
+        margin-bottom: 6px;
+      }
+
+      .mini-btn,
+      .mini-tab,
+      .mini-row {
+        display: block;
+        border-radius: 9px;
+        padding: 5px 7px;
+        margin-top: 5px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+      }
+
+      .mock.dark .mini-btn,
+      .mock.dark .mini-row {
+        background: var(--terracotta);
+        border-color: var(--terracotta);
+      }
+
+      .mini-btn.primary {
+        background: var(--ink);
+        color: var(--bg);
+        border-color: var(--ink);
+      }
+
+      .transitions {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+      }
+
+      .transitions div {
+        border-left: 3px solid var(--terracotta);
+        padding-left: 7px;
+        color: var(--muted);
+        line-height: 1.32;
+      }
+
+      .note {
+        margin-top: 8px;
+        border-radius: 10px;
+        background: #f0dfcc;
+        padding: 7px;
+        color: var(--ink);
+        line-height: 1.35;
+      }
+
+      .legend {
+        display: flex;
+        gap: 10px;
+        color: var(--muted);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        background: var(--terracotta);
+      }
+
+      .dot.dark {
+        background: var(--ink);
+      }
+
+      .dot.line {
+        background: var(--line);
+      }
+
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="page cover">
+      <div>
+        <span class="pill">Мобильное приложение</span>
+        <h1>Семейные<br />истории</h1>
+        <p>
+          Карта экранов, нитей переходов и поведения кнопок для текущего
+          кликабельного прототипа.
+        </p>
+      </div>
+      <div class="meta">
+        <p><b>Платформа MVP:</b> VK Mini Apps / веб-прототип</p>
+        <p><b>Семья:</b> Ивановы</p>
+        <p><b>Данные:</b> тестовые истории, потешки, сказки, участники и заказ</p>
+        <p><b>Версия:</b> быстрый прототип для правок</p>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="title-row">
+        <div>
+          <span class="pill" style="color: var(--terracotta); border-color: var(--line)">Общая карта</span>
+          <h2>Нити переходов</h2>
+        </div>
+        <p>
+          Стрелки показывают основной путь пользователя. Нижняя навигация
+          появляется после онбординга и ведёт в четыре главных раздела.
+        </p>
+      </div>
+
+      <div class="flow">
+        <div class="node dark">
+          <h3>0. Загрузка</h3>
+          <p>Логотип и индикатор</p>
+          <div class="arrow">авто →</div>
+        </div>
+        <div class="node">
+          <h3>1. Онбординг 1</h3>
+          <p>Эмоциональное обещание</p>
+          <div class="arrow">Далее →</div>
+        </div>
+        <div class="node">
+          <h3>2. Онбординг 2</h3>
+          <p>Голос / текст / фото</p>
+          <div class="arrow">Далее →</div>
+        </div>
+        <div class="node">
+          <h3>3. Онбординг 3</h3>
+          <p>Семья собирает книгу</p>
+          <div class="arrow">Начать →</div>
+        </div>
+        <div class="node accent">
+          <h3>4. Лента</h3>
+          <p>Главный экран семьи</p>
+          <div class="arrow">+ → Новая история</div>
+        </div>
+
+        <div class="node">
+          <h3>5. Новая история</h3>
+          <p>Голос / текст / фото</p>
+          <div class="arrow">Сохранить → Лента</div>
+        </div>
+        <div class="node">
+          <h3>6. Библиотека</h3>
+          <p>Наши записи, потешки, сказки</p>
+          <div class="arrow">нижнее меню</div>
+        </div>
+        <div class="node accent">
+          <h3>7. Конструктор</h3>
+          <p>Истории + обложка</p>
+          <div class="arrow">Смотреть книгу →</div>
+        </div>
+        <div class="node">
+          <h3>8. Предпросмотр</h3>
+          <p>Страницы книги</p>
+          <div class="arrow">Заказать →</div>
+        </div>
+        <div class="node">
+          <h3>9. Заказ</h3>
+          <p>Обложка, тираж, итог</p>
+          <div class="arrow">Назад → Предпросмотр</div>
+        </div>
+
+        <div class="node">
+          <h3>10. Семья</h3>
+          <p>Участники и роли</p>
+          <div class="arrow">Пригласить →</div>
+        </div>
+        <div class="node">
+          <h3>11. Приглашение</h3>
+          <p>Тестовая join-ссылка</p>
+          <div class="arrow">Готово → Семья</div>
+        </div>
+      </div>
+
+      <div class="flows-list">
+        <div class="flow-note">
+          <b>Первый вход</b>
+          <p>Загрузка → три шага онбординга → лента семьи. После этого доступна нижняя навигация.</p>
+        </div>
+        <div class="flow-note">
+          <b>Добавление истории</b>
+          <p>Лента → «Начните новую историю» → выбор типа → сохранить → новая карточка появляется в ленте.</p>
+        </div>
+        <div class="flow-note">
+          <b>Сборка книги</b>
+          <p>Книга → отметить истории → выбрать обложку → предпросмотр → заказ печати.</p>
+        </div>
+        <div class="flow-note">
+          <b>Библиотека</b>
+          <p>Вкладки переключают личные записи, потешки и сказки. «В книгу» пока тестовая кнопка.</p>
+        </div>
+        <div class="flow-note">
+          <b>Семейный доступ</b>
+          <p>Семья → «Пригласить родных» → модалка с join-ссылкой → закрытие кнопкой «Готово».</p>
+        </div>
+        <div class="flow-note">
+          <b>Ограничение прототипа</b>
+          <p>Оплата, реальная отправка ссылок, транскрибация и печать пока заменены тестовыми состояниями.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="title-row">
+        <div>
+          <span class="pill" style="color: var(--terracotta); border-color: var(--line)">Экраны</span>
+          <h2>Онбординг и главный путь</h2>
+        </div>
+        <div class="legend">
+          <span><i class="dot dark"></i> старт / ключевой экран</span>
+          <span><i class="dot"></i> действие</span>
+          <span><i class="dot line"></i> состояние</span>
+        </div>
+      </div>
+
+      <div class="screen-grid">
+        <article class="screen-card">
+          <h3>0. Экран загрузки</h3>
+          <p class="purpose">Первый визуальный контакт с брендом.</p>
+          <div class="mock dark">
+            <div class="mock-title">Семейные истории</div>
+            <span class="mini-row">Загрузка...</span>
+          </div>
+          <div class="transitions">
+            <div>Автоматически ведёт на онбординг 1.</div>
+          </div>
+          <p class="note">Нужен для ощущения приложения, а не обычной веб-страницы.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>1. Онбординг: голоса</h3>
+          <p class="purpose">Объясняет эмоциональную ценность продукта.</p>
+          <div class="mock">
+            <div class="mock-title">Голоса вашей семьи не должны исчезать</div>
+            <span class="mini-btn primary">Далее</span>
+          </div>
+          <div class="transitions">
+            <div>«Далее» → онбординг 2.</div>
+          </div>
+          <p class="note">Текст из презентации сохранён почти дословно.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>2. Онбординг: способы</h3>
+          <p class="purpose">Показывает, что историю можно добавить разными способами.</p>
+          <div class="mock">
+            <div class="mock-title">Голосом, фото или текстом</div>
+            <span class="mini-btn primary">Далее</span>
+          </div>
+          <div class="transitions">
+            <div>«Далее» → онбординг 3.</div>
+          </div>
+          <p class="note">Снимает страх записи: можно не говорить голосом, если неудобно.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>3. Онбординг: книга</h3>
+          <p class="purpose">Обещает конечный результат — семейную книгу.</p>
+          <div class="mock">
+            <div class="mock-title">Соберите из историй книгу</div>
+            <span class="mini-btn primary">Начать</span>
+          </div>
+          <div class="transitions">
+            <div>«Начать» → лента.</div>
+          </div>
+          <p class="note">Для входа по invite позже этот шаг можно пропускать.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>4. Лента</h3>
+          <p class="purpose">Дом семьи: последние записи и главный CTA.</p>
+          <div class="mock">
+            <div class="mock-title">Семейные истории</div>
+            <span class="mini-btn primary">Начните новую историю +</span>
+            <span class="mini-row">Колыбельная бабушки Вали</span>
+            <span class="mini-row">Как мы ездили на дачу</span>
+          </div>
+          <div class="transitions">
+            <div>CTA «Начните новую историю» → экран записи.</div>
+            <div>Нижнее меню → библиотека / книга / семья.</div>
+          </div>
+          <p class="note">После сохранения история добавляется в начало ленты.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>5. Новая история</h3>
+          <p class="purpose">Создание записи голосом, текстом или фото.</p>
+          <div class="mock">
+            <span class="mini-tab">Голос · Текст · Фото</span>
+            <span class="mini-row">00:00 / текст / фото</span>
+            <span class="mini-btn primary">Сохранить в библиотеку</span>
+          </div>
+          <div class="transitions">
+            <div>«Назад» → лента без сохранения.</div>
+            <div>«Сохранить» → лента с новой карточкой.</div>
+            <div>Табы меняют режим создания.</div>
+          </div>
+          <p class="note">В прототипе запись голоса тестовая, но кнопка запрашивает микрофон.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="page">
+      <div class="title-row">
+        <div>
+          <span class="pill" style="color: var(--terracotta); border-color: var(--line)">Экраны</span>
+          <h2>Библиотека, книга, семья и заказ</h2>
+        </div>
+        <p>Эти разделы доступны после онбординга через нижнюю навигацию или вложенные переходы.</p>
+      </div>
+
+      <div class="screen-grid">
+        <article class="screen-card">
+          <h3>6. Библиотека</h3>
+          <p class="purpose">Личные записи плюс общие потешки и сказки.</p>
+          <div class="mock">
+            <span class="mini-tab">Наши записи · Потешки · Сказки</span>
+            <span class="mini-row">Первый снег в Нягани</span>
+            <span class="mini-row">Сорока-белобока</span>
+          </div>
+          <div class="transitions">
+            <div>Табы переключают списки.</div>
+            <div>«В книгу» пока не меняет состояние, это задел.</div>
+          </div>
+          <p class="note">Позже «В книгу» должен добавлять библиотечный текст в конструктор.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>7. Конструктор книги</h3>
+          <p class="purpose">Выбор историй и обложки будущей книги.</p>
+          <div class="mock">
+            <span class="mini-row">✓ Колыбельная бабушки Вали</span>
+            <span class="mini-row">✓ Как мы ездили на дачу</span>
+            <span class="mini-tab">Лён · Тёмная · Орех</span>
+            <span class="mini-btn primary">Смотреть книгу</span>
+          </div>
+          <div class="transitions">
+            <div>Чекбокс истории → включает/исключает из книги.</div>
+            <div>Обложка → меняет preview.</div>
+            <div>«Смотреть книгу» → предпросмотр.</div>
+          </div>
+          <p class="note">Кнопка disabled, если не выбрана ни одна история.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>8. Предпросмотр книги</h3>
+          <p class="purpose">Показывает книгу такой, какой она пойдёт в печать.</p>
+          <div class="mock">
+            <div class="mock-title">Колыбельная бабушки Вали</div>
+            <span class="mini-row">Страница 1 из 3</span>
+            <span class="mini-btn primary">Заказать печатную книгу</span>
+          </div>
+          <div class="transitions">
+            <div>«Назад» → конструктор.</div>
+            <div>«Далее/Назад» → листание страниц.</div>
+            <div>«Заказать» → экран заказа.</div>
+          </div>
+          <p class="note">Если у истории нет фото, показывается заглушка «Фото для этой страницы».</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>9. Семья</h3>
+          <p class="purpose">Показывает участников и даёт пригласить родных.</p>
+          <div class="mock">
+            <span class="mini-row">Мама — Автор</span>
+            <span class="mini-row">Бабушка Валя — Соавтор</span>
+            <span class="mini-btn primary">+ Пригласить родных</span>
+          </div>
+          <div class="transitions">
+            <div>«Пригласить родных» → модалка приглашения.</div>
+            <div>Нижнее меню → другие разделы.</div>
+          </div>
+          <p class="note">Роли соответствуют выбранной модели: автор и соавторы.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>10. Приглашение</h3>
+          <p class="purpose">Показывает тестовую ссылку на семью.</p>
+          <div class="mock">
+            <div class="mock-title">Семья Ивановых</div>
+            <span class="mini-row">vk.com/appXXXX#join_8f3k2p</span>
+            <span class="mini-btn primary">Готово</span>
+          </div>
+          <div class="transitions">
+            <div>«Готово» → закрывает модалку.</div>
+            <div>Клик по фону → закрывает модалку.</div>
+          </div>
+          <p class="note">Позже сюда добавим копирование ссылки и шаринг VK/OK.</p>
+        </article>
+
+        <article class="screen-card">
+          <h3>11. Заказ</h3>
+          <p class="purpose">Выбор типа обложки, тиража и расчёт суммы.</p>
+          <div class="mock">
+            <span class="mini-tab">Мягкая · Твёрдая</span>
+            <span class="mini-tab">1 экз. · 3 экз. · 5 экз.</span>
+            <span class="mini-row">Итого 5 700 ₽</span>
+            <span class="mini-btn primary">Оформить заказ</span>
+          </div>
+          <div class="transitions">
+            <div>«Назад» → предпросмотр.</div>
+            <div>Выбор тиража/обложки → пересчёт итога.</div>
+            <div>«Оформить заказ» пока без действия.</div>
+          </div>
+          <p class="note">Для MVP лучше заменить оплату на заявку, пока нет типографии.</p>
+        </article>
+      </div>
+    </section>
+  </body>
+</html>

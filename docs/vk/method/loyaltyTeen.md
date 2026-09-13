@@ -1,0 +1,15 @@
+# loyaltyTeen
+
+> Источник: [https://dev.vk.ru/ru/method/loyaltyTeen](https://dev.vk.ru/ru/method/loyaltyTeen)
+- [LoyaltyTeen](method/loyaltyTeen)
+  - [loyaltyTeen.hasAccount](method/loyaltyTeen.hasAccount)
+  - [loyaltyTeen.hasAccounts](method/loyaltyTeen.hasAccounts)
+  - [loyaltyTeen.partnerCompleteAchievement](method/loyaltyTeen.partnerCompleteAchievement)
+  - [loyaltyTeen.partnerCompleteTask](method/loyaltyTeen.partnerCompleteTask)
+  - [loyaltyTeen.partnerCreateAccount](method/loyaltyTeen.partnerCreateAccount)
+  - [loyaltyTeen.partnerGetAchievements](method/loyaltyTeen.partnerGetAchievements)
+  - [loyaltyTeen.partnerGetBalance](method/loyaltyTeen.partnerGetBalance)
+  - [loyaltyTeen.partnerGetOffers](method/loyaltyTeen.partnerGetOffers)
+  - [loyaltyTeen.partnerGetTasks](method/loyaltyTeen.partnerGetTasks)
+  - [loyaltyTeen.partnerHasAccount](method/loyaltyTeen.partnerHasAccount)
+  - [loyaltyTeen.sumsubCallback](method/loyaltyTeen.sumsubCallback)

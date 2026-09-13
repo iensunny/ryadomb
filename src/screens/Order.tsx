@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { coverTitles } from "../constants/covers";
+import type { CoverKind } from "../domain/book";
 import { BackIcon } from "../icons";
-import type { CoverKind } from "../stories";
 
 type Copies = 1 | 3 | 5;
 
@@ -10,12 +11,6 @@ type Props = {
   pageCount: number;
   onBack: () => void;
   onDownloadPdf?: () => void | Promise<void>;
-};
-
-const coverNames: Record<CoverKind, string> = {
-  linen: "Лён",
-  dark: "Тёмная",
-  walnut: "Орех",
 };
 
 function pluralSpreads(count: number) {
@@ -96,7 +91,7 @@ export function Order({
       <div className="order-summary">
         <h2>{bookTitle}</h2>
         <p className="order-meta">
-          {pluralSpreads(pageCount)} · обложка «{coverNames[cover]}»
+          {pluralSpreads(pageCount)} · обложка «{coverTitles[cover]}»
         </p>
         <p className="order-disclaimer">
           Это заявка, а не оплата. Мы свяжемся с вами и уточним стоимость печати

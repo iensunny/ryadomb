@@ -1,0 +1,48 @@
+# market
+
+> Источник: [https://dev.vk.ru/ru/method/market](https://dev.vk.ru/ru/method/market)
+- [Market](method/market)
+  - [market.add](method/market.add) — Метод добавляет новый товар.
+  - [market.addAlbum](method/market.addAlbum) — Метод добавляет новую подборку с товарами в сообщество.
+  - [market.addProperty](method/market.addProperty) — Добавляет новое свойство, которое может быть задано для товаров сообщества (например, «цвет», «размер» и т.д.).
+  - [market.addPropertyVariant](method/market.addPropertyVariant) — Добавляет вариант свойства. Всего у свойства может быть 50 вариантов. 
+  - [market.addToAlbum](method/market.addToAlbum) — Добавляет товар в одну или несколько выбранных подборок.
+  - [market.createComment](method/market.createComment) — Создаёт новый комментарий к товару.
+  - [market.delete](method/market.delete) — Удаляет товар.
+  - [market.deleteAlbum](method/market.deleteAlbum) — Метод удаляет подборку с товарами.
+  - [market.deleteComment](method/market.deleteComment) — Удаляет комментарий к товару.
+  - [market.deleteProperty](method/market.deleteProperty) — Удаляет свойство товара.
+  - [market.deletePropertyVariant](method/market.deletePropertyVariant) — Удаляет вариант свойства.
+  - [market.edit](method/market.edit) — Метод редактирует информацию о товаре.
+  - [market.editAlbum](method/market.editAlbum) — Метод редактирует подборку с товарами в сообществе.
+  - [market.editComment](method/market.editComment) — Изменяет текст комментария к товару.
+  - [market.editOrder](method/market.editOrder) — Редактирует заказ.
+  - [market.editProperty](method/market.editProperty) — Редактирует свойство товара.
+  - [market.editPropertyVariant](method/market.editPropertyVariant) — Редактирует вариант свойства.
+  - [market.get](method/market.get) — Возвращает список товаров в сообществе.
+  - [market.getAlbumById](method/market.getAlbumById) — Возвращает данные подборки с товарами.
+  - [market.getAlbums](method/market.getAlbums) — Возвращает список подборок с товарами.
+  - [market.getById](method/market.getById) — Возвращает информацию о товарах по идентификаторам.
+  - [market.getCategories](method/market.getCategories) — Возвращает список категорий для товаров.
+  - [market.getComments](method/market.getComments) — Возвращает список комментариев к товару.
+  - [market.getGroupOrders](method/market.getGroupOrders) — Возвращает заказы сообщества.
+  - [market.getOrderById](method/market.getOrderById) — Возвращает заказ по идентификатору.
+  - [market.getOrderItems](method/market.getOrderItems) — Возвращает товары в заказе.
+  - [market.getOrders](method/market.getOrders) — Возвращает заказы.
+  - [market.getProductPhotoUploadServer](method/market.getProductPhotoUploadServer) — Возвращает адрес для [загрузки изображений товаров в сообщество](api/upload/photo-in-market).
+
+  - [market.getProperties](method/market.getProperties) — Возвращает список свойств для указанного сообщества.
+  - [market.groupItems](method/market.groupItems) — Объединяет товары в группу товаров.
+  - [market.removeFromAlbum](method/market.removeFromAlbum) — Удаляет товар из одной или нескольких выбранных подборок.
+  - [market.reorderAlbums](method/market.reorderAlbums) — Изменяет положение подборки с товарами в списке.
+  - [market.reorderItems](method/market.reorderItems) — Изменяет положение товара в подборке.
+  - [market.report](method/market.report) — Позволяет отправить жалобу на товар.
+  - [market.reportComment](method/market.reportComment) — Позволяет оставить жалобу на комментарий к товару.
+  - [market.restore](method/market.restore) — Восстанавливает удаленный товар.
+  - [market.restoreComment](method/market.restoreComment) — Восстанавливает удаленный комментарий к товару.
+  - [market.saveProductPhoto](method/market.saveProductPhoto) — Подготавливает изображение, загруженное с помощью [`market.getProductPhotoUploadServer`](method/market.getProductPhotoUploadServer), для добавления к товару сообщества. 
+  - [market.saveProductPhotoBulk](method/market.saveProductPhotoBulk)
+  - [market.search](method/market.search) — Метод получает товары из каталога сообщества.
+  - [market.searchItems](method/market.searchItems)
+  - [market.searchItemsBasic](method/market.searchItemsBasic) — Получение товаров по поисковому запросу для вкладки бизнес групп
+  - [market.ungroupItems](method/market.ungroupItems) — Разделяет группу товаров на несколько товаров.

@@ -14,7 +14,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Book, CoverKind, Story } from "../stories";
+import { covers } from "../constants/covers";
+import type { Book, CoverKind } from "../domain/book";
+import type { Story } from "../domain/story";
 
 type Props = {
   stories: Story[];
@@ -25,12 +27,6 @@ type Props = {
   onCoverChange: (cover: CoverKind) => void;
   onPreview: () => void;
 };
-
-const covers: Array<{ id: CoverKind; title: string }> = [
-  { id: "linen", title: "Лён" },
-  { id: "dark", title: "Тёмная" },
-  { id: "walnut", title: "Орех" },
-];
 
 function SortableStory({
   story,

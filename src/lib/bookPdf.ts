@@ -1,26 +1,15 @@
 import { jsPDF } from "jspdf";
-import bridge from "@vkontakte/vk-bridge";
+import { coverPdfColors, coverTitles } from "../constants/covers";
+import type { CoverKind } from "../domain/book";
+import type { Story } from "../domain/story";
 import {
   firstStoryPhoto,
-  storyPhotoTokenRe,
-  type CoverKind,
-  type Story,
-} from "../stories";
-
-const coverColors: Record<CoverKind, string> = {
-  linen: "#cdb894",
-  dark: "#2c1a11",
-  walnut: "#6d452a",
-};
-
-const coverTitles: Record<CoverKind, string> = {
-  linen: "Лён",
-  dark: "Тёмная",
-  walnut: "Орех",
-};
+  storyPlainText,
+} from "./storyFormat";
+import { bridge } from "../vk/bridge";
 
 type FontCache = { regular: string; italic: string };
-let fontCache: Promise<FontCache> | null = null;
+let fontCache: Promise<FontCache | null> | null = null;
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer);
@@ -35,14 +24,23 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 async function loadFonts() {
   if (!fontCache) {
     fontCache = (async () => {
-      const [regular, italic] = await Promise.all([
-        fetch("/fonts/NotoSerif-Regular.ttf").then((r) => r.arrayBuffer()),
-        fetch("/fonts/NotoSerif-Italic.ttf").then((r) => r.arrayBuffer()),
-      ]);
-      return {
-        regular: arrayBufferToBase64(regular),
-        italic: arrayBufferToBase64(italic),
-      };
+      try {
+        const [regularResponse, italicResponse] = await Promise.all([
+          fetch("./fonts/NotoSerif-Regular.ttf"),
+          fetch("./fonts/NotoSerif-Italic.ttf"),
+        ]);
+        if (!regularResponse.ok || !italicResponse.ok) return null;
+        const [regular, italic] = await Promise.all([
+          regularResponse.arrayBuffer(),
+          italicResponse.arrayBuffer(),
+        ]);
+        return {
+          regular: arrayBufferToBase64(regular),
+          italic: arrayBufferToBase64(italic),
+        };
+      } catch {
+        return null;
+      }
     })();
   }
   return fontCache;
@@ -53,17 +51,6 @@ function registerFonts(doc: jsPDF, fonts: FontCache) {
   doc.addFileToVFS("NotoSerif-Italic.ttf", fonts.italic);
   doc.addFont("NotoSerif-Regular.ttf", "NotoSerif", "normal");
   doc.addFont("NotoSerif-Italic.ttf", "NotoSerif", "italic");
-}
-
-function plainStoryText(body?: string) {
-  return (body ?? "")
-    .replace(storyPhotoTokenRe(), "\n\n")
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\*([^*]+)\*/g, "$1")
-    .replace(/^>\s?/gm, "")
-    .replace(/•••/g, "· · ·")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function wrapLines(doc: jsPDF, text: string, maxWidth: number) {
@@ -136,18 +123,21 @@ export async function downloadBookPdf(options: {
     format: "a5",
     orientation: "portrait",
   });
-  registerFonts(doc, fonts);
+  if (fonts) {
+    registerFonts(doc, fonts);
+  }
+  const fontFamily = fonts ? "NotoSerif" : "times";
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 16;
   const contentW = pageW - margin * 2;
 
-  doc.setFillColor(coverColors[cover]);
+  doc.setFillColor(coverPdfColors[cover]);
   doc.rect(0, 0, pageW, pageH, "F");
   doc.setFillColor("#fffaf2");
   doc.roundedRect(10, 12, pageW - 20, pageH - 24, 4, 4, "F");
-  doc.setFont("NotoSerif", "normal");
+  doc.setFont(fontFamily, "normal");
   doc.setTextColor("#3a2417");
   doc.setFontSize(11);
   doc.text("Семейные истории", pageW / 2, 36, { align: "center" });
@@ -158,7 +148,7 @@ export async function downloadBookPdf(options: {
     doc.text(line, pageW / 2, titleY, { align: "center" });
     titleY += 10;
   }
-  doc.setFont("NotoSerif", "italic");
+  doc.setFont(fontFamily, "italic");
   doc.setFontSize(11);
   doc.setTextColor("#8a6a3f");
   doc.text(`Обложка «${coverTitles[cover]}»`, pageW / 2, pageH - 28, {
@@ -174,7 +164,7 @@ export async function downloadBookPdf(options: {
     doc.roundedRect(8, 10, pageW - 16, pageH - 20, 3, 3, "F");
 
     let y = margin + 4;
-    doc.setFont("NotoSerif", "normal");
+    doc.setFont(fontFamily, "normal");
     doc.setTextColor("#3a2417");
     doc.setFontSize(16);
     const heading = wrapLines(doc, story.title, contentW);
@@ -203,8 +193,8 @@ export async function downloadBookPdf(options: {
       }
     }
 
-    const body = plainStoryText(story.body);
-    doc.setFont("NotoSerif", "normal");
+    const body = storyPlainText(story.body);
+    doc.setFont(fontFamily, "normal");
     doc.setFontSize(11);
     doc.setTextColor("#5c4632");
     const paragraphs = body
@@ -220,7 +210,7 @@ export async function downloadBookPdf(options: {
           doc.setFillColor("#fffaf2");
           doc.roundedRect(8, 10, pageW - 16, pageH - 20, 3, 3, "F");
           y = margin + 4;
-          doc.setFont("NotoSerif", "normal");
+          doc.setFont(fontFamily, "normal");
           doc.setFontSize(11);
           doc.setTextColor("#5c4632");
         }
@@ -230,11 +220,11 @@ export async function downloadBookPdf(options: {
       y += 3;
     }
 
-    doc.setFont("NotoSerif", "italic");
+    doc.setFont(fontFamily, "italic");
     doc.setFontSize(10);
     doc.setTextColor("#8a6a3f");
     doc.text(story.author, margin, pageH - 18);
-    doc.setFont("NotoSerif", "normal");
+    doc.setFont(fontFamily, "normal");
     doc.setFontSize(9);
     doc.text(`${index + 1} / ${stories.length}`, pageW - margin, pageH - 18, {
       align: "right",

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { INVITE_FRAGMENT } from "../constants/fragments";
 import { bridge } from "../vk/bridge";
 import { inviteLink } from "../vk/session";
 
@@ -11,7 +12,7 @@ type Props = {
 export function InviteModal({ familyName, appId, onClose }: Props) {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
-  const link = inviteLink(appId, "join_family-home");
+  const link = inviteLink(appId, INVITE_FRAGMENT);
 
   async function copy() {
     try {

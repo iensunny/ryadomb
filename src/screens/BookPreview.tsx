@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
+import type { CoverKind } from "../domain/book";
+import type { Story } from "../domain/story";
 import { BackIcon } from "../icons";
 import {
   firstStoryPhoto,
   storyPlainExcerpt,
-  type CoverKind,
-  type Story,
-} from "../stories";
+} from "../lib/storyFormat";
 import { FormattedStoryBody } from "../ui/FormattedStoryBody";
 
 type Props = {

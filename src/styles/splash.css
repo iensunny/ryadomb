@@ -1,0 +1,72 @@
+/* Splash */
+
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--ink);
+  color: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px;
+}
+
+.splash-partner-logo {
+  position: absolute;
+  top: calc(28px + var(--vk-inset-top, 0px));
+  width: min(58vw, 240px);
+  height: auto;
+  mix-blend-mode: screen;
+}
+
+.splash-screen h1 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 48px;
+  line-height: 1.12;
+  margin-bottom: 0;
+}
+
+.loader {
+  position: absolute;
+  bottom: 44px;
+  width: 42px;
+  height: 3px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--cream) 22%, transparent);
+  overflow: hidden;
+}
+
+.loader::after {
+  content: "";
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bg);
+  animation: loader-slide 1s ease-in-out infinite;
+}
+
+@keyframes loader-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+@keyframes splash-fade {
+  0%,
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    pointer-events: none;
+  }
+}

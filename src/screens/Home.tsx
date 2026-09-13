@@ -1,5 +1,5 @@
 import { PlusIcon } from "../icons";
-import type { Story } from "../stories";
+import type { Story } from "../domain/story";
 import { StoryCard } from "../ui/StoryCard";
 
 type Props = {

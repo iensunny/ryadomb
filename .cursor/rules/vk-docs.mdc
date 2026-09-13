@@ -1,0 +1,35 @@
+---
+description: Разработка Mini Apps только по локальной документации VK
+alwaysApply: true
+---
+
+# Разработка по документации VK
+
+Этот проект — VK Mini App. Код, архитектура и рекомендации берутся из локальной копии инструкций, не из памяти модели и не с сайта в первую очередь.
+
+## Обязательный порядок
+
+1. Откройте индекс `docs/vk/README.md`.
+2. Прочитайте страницы, которые относятся к задаче, **до** правок кода, советов по API и названий методов.
+3. Делайте только то, что описано в этих страницах. Если страницы нет — скажите об этом, не выдумывайте.
+4. В ответе кратко укажите, какие файлы из `docs/vk/` использовали.
+
+## Куда смотреть
+
+| Задача | Файлы |
+|---|---|
+| Старт приложения | `docs/vk/bridge/VKWebAppInit.md`, `docs/vk/bridge/overview.md` |
+| Кто пользователь, вход | `docs/vk/mini-apps/development/launch-params.md`, `docs/vk/mini-apps/development/launch-params-sign.md`, `docs/vk/bridge/VKWebAppGetUserInfo.md`, `docs/vk/bridge/VKWebAppGetLaunchParams.md` |
+| Инвайт, шаринг, hash | `docs/vk/bridge/VKWebAppShowInviteBox.md`, `docs/vk/bridge/VKWebAppShare.md`, `docs/vk/bridge/VKWebAppChangeFragment.md`, `docs/vk/mini-apps/development/user-defined-links.md` |
+| Вызов API ВКонтакте | `docs/vk/mini-apps/development/api-calls.md`, `docs/vk/bridge/VKWebAppCallAPIMethod.md`, `docs/vk/method/` |
+| Хостинг, URL, отладка | `docs/vk/mini-apps/development/hosting/`, `docs/vk/mini-apps/settings/`, `docs/vk/libraries/tunnel.md` |
+| Любой метод Bridge | `docs/vk/bridge/<ИмяСобытия>.md` |
+
+## Нельзя
+
+- Называть методы `VKWebApp*` и параметры запуска по памяти.
+- Пропускать `VKWebAppInit`.
+- Считать `vk_user_id` и остальные launch params доверенными без проверки подписи на сервере.
+- Подменять платформенные события самодельным логином/паролем внутри Mini App.
+
+Локальные файлы важнее догадок. Сайт `dev.vk.ru` — запасной источник, только если нужной страницы нет в `docs/vk/`.

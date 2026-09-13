@@ -1,4 +1,5 @@
-import { firstStoryPhoto, type Story } from "../stories";
+import type { Story } from "../domain/story";
+import { firstStoryPhoto } from "../lib/storyFormat";
 
 type Props = {
   story: Story;

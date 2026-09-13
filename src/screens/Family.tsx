@@ -1,14 +1,6 @@
+import type { FamilyPerson } from "../domain/family";
 import { Avatar } from "../ui/Avatar";
 import type { VkUserProfile } from "../vk/session";
-
-export type FamilyPerson = {
-  id: string;
-  name: string;
-  role: string;
-  initials: string;
-  photoUrl?: string;
-  isYou?: boolean;
-};
 
 type Props = {
   familyName: string;
