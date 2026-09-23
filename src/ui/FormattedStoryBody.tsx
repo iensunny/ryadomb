@@ -10,8 +10,13 @@ type Props = {
 };
 
 function inline(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  const parts = text.split(
+    /(\[\[quote\]\][\s\S]*?\[\[\/quote\]\]|\*\*[^*]+\*\*|\*[^*]+\*)/g,
+  );
   return parts.map((part, index) => {
+    if (part.startsWith("[[quote]]") && part.endsWith("[[/quote]]")) {
+      return <q key={index}>{part.slice(9, -10)}</q>;
+    }
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
     }

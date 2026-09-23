@@ -1,7 +1,12 @@
-import type { Story } from "../domain/story";
+import type { PhotoEdit, Story } from "../domain/story";
 
 export type TextBlock = { type: "text"; key: string; value: string };
-export type PhotoBlock = { type: "photo"; key: string; url: string };
+export type PhotoBlock = {
+  type: "photo";
+  key: string;
+  url: string;
+  edit?: PhotoEdit;
+};
 export type EditorBlock = TextBlock | PhotoBlock;
 
 let blockSeq = 0;
@@ -37,6 +42,7 @@ export function storyPlainText(body?: string) {
     .replace(storyPhotoTokenRe(), "\n\n")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/\[\[\/?quote\]\]/g, "")
     .replace(/^>\s?/gm, "")
     .replace(/•••/g, "· · ·")
     .replace(/\n{3,}/g, "\n\n")
@@ -70,7 +76,14 @@ export function blocksFromStory(story?: Story): EditorBlock[] {
     const photo = chunk.match(/^\[\[photo:([^\]]+)\]\]$/);
     if (photo) {
       const url = photos[photo[1]];
-      if (url) blocks.push({ type: "photo", key: photo[1], url });
+      if (url) {
+        blocks.push({
+          type: "photo",
+          key: photo[1],
+          url,
+          edit: story?.photoEdits?.[photo[1]],
+        });
+      }
       continue;
     }
 
@@ -98,8 +111,8 @@ export function blocksFromStory(story?: Story): EditorBlock[] {
   return blocks;
 }
 
-export function createPhotoBlock(url: string): PhotoBlock {
-  return { type: "photo", key: nextKey("p"), url };
+export function createPhotoBlock(url: string, edit?: PhotoEdit): PhotoBlock {
+  return { type: "photo", key: nextKey("p"), url, edit };
 }
 
 export function createTextBlock(value = ""): TextBlock {
@@ -112,6 +125,7 @@ export function isPhotoBlock(block: EditorBlock): block is PhotoBlock {
 
 export function serializeBlocks(blocks: EditorBlock[]) {
   const photos: Record<string, string> = {};
+  const photoEdits: Record<string, PhotoEdit> = {};
   const parts: string[] = [];
 
   for (const block of blocks) {
@@ -121,6 +135,7 @@ export function serializeBlocks(blocks: EditorBlock[]) {
       continue;
     }
     photos[block.key] = block.url;
+    if (block.edit) photoEdits[block.key] = block.edit;
     parts.push(`[[photo:${block.key}]]`);
   }
 
@@ -128,6 +143,7 @@ export function serializeBlocks(blocks: EditorBlock[]) {
   return {
     body: parts.join("\n\n"),
     photos,
+    photoEdits,
     photoUrl,
   };
 }

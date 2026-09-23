@@ -41,7 +41,9 @@
   padding: 6px;
   border: 1px solid color-mix(in srgb, var(--gold) 22%, transparent);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--card) 88%, var(--bg));
+  background: color-mix(in srgb, var(--card) 94%, var(--bg));
+  box-shadow: 0 12px 30px rgba(67, 45, 33, 0.14);
+  backdrop-filter: blur(14px);
 }
 
 .nav-item {
@@ -55,16 +57,28 @@
   justify-content: center;
   line-height: 1;
   padding-top: 1px;
+  transition: background-color 220ms ease, color 220ms ease, transform 220ms ease;
 }
 
 .nav-item.active {
-  background: var(--ink);
+  background: var(--brown);
   color: var(--bg);
+  transform: scale(1.02);
 }
 
 .library-tabs {
   margin-bottom: 12px;
 }
+
+.story-filter-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 1px 10px; margin-bottom: 8px; scrollbar-width: none; }
+.story-filter-strip::-webkit-scrollbar { display: none; }
+.filter-chip { flex: none; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--brown); font-weight: 700; }
+.filter-chip span { margin-left: 4px; color: var(--label); }
+.filter-chip.active { border-color: var(--brown); background: var(--brown); color: var(--bg); }
+.filter-chip.active span { color: color-mix(in srgb, var(--bg) 72%, transparent); }
+
+.detail-categories { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+.detail-categories span { padding: 5px 9px; border-radius: 999px; background: var(--badge); color: var(--brown); font-size: 12px; font-weight: 700; }
 
 .library-create {
   width: 100%;
@@ -72,7 +86,7 @@
   min-height: 40px;
   margin: -2px 0 12px;
   border-radius: 13px;
-  background: var(--ink);
+  background: var(--olive);
   color: var(--bg);
   display: flex;
   align-items: center;
@@ -82,6 +96,12 @@
   font-weight: 700;
   line-height: 1;
   padding-top: 1px;
+  flex: 0 0 auto;
+}
+
+.page-head,
+.story-filter-strip {
+  flex: 0 0 auto;
 }
 
 .library-create span {
@@ -171,7 +191,7 @@
   height: 36px;
   padding: 1px 8px 0;
   border-radius: 12px;
-  background: var(--ink);
+  background: var(--brown);
   color: var(--bg);
   font-size: 12px;
   font-weight: 800;
@@ -268,13 +288,100 @@
   margin-top: 24px;
 }
 
+.book-pages-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.add-own-page { border: 1px solid color-mix(in srgb, var(--terracotta) 42%, transparent); border-radius: 999px; padding: 8px 11px; color: var(--terracotta); background: var(--card); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.book-item { align-items: flex-start; }
+.custom-page-copy { display: flex; flex: 1; flex-direction: column; gap: 7px; }
+.custom-page-copy strong { color: var(--terracotta); font-size: 13px; }
+.custom-page-copy textarea { width: 100%; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; background: color-mix(in srgb, var(--bg) 60%, var(--card)); color: var(--ink); font: inherit; font-size: 13px; line-height: 1.4; }
+.remove-page { color: var(--terracotta); font-size: 22px; line-height: 1; padding: 0 0 0 8px; }
+
 .cover-block {
   margin: 24px 0 16px;
 }
 
+.cover-summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: var(--card); }
+.cover-summary .section-hint { margin: 5px 0 0; }
+.open-cover-editor { border-radius: 999px; padding: 10px 15px; background: var(--badge); color: var(--terracotta); font-size: 13px; font-weight: 800; }
+.cover-editor-backdrop { position: fixed; z-index: 40; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 56px 0 0; background: color-mix(in srgb, var(--ink) 55%, transparent); backdrop-filter: blur(6px); }
+.cover-editor-sheet { position: relative; width: min(100%, 440px); max-height: calc(100dvh - 56px); overflow-y: auto; border-radius: 26px 26px 0 0; padding: 16px 20px calc(22px + env(safe-area-inset-bottom)); background: var(--card); box-shadow: 0 -20px 70px color-mix(in srgb, var(--ink) 24%, transparent); }
+.cover-editor-close { position: absolute; z-index: 3; top: 12px; left: 14px; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--bg) 78%, var(--card)); box-shadow: 0 3px 12px color-mix(in srgb, var(--ink) 14%, transparent); font-size: 25px; line-height: 1; }
+.cover-editor-card { width: min(100%, 220px); min-height: 352px; margin: 0 auto 16px; border-radius: 20px; padding: 38px 20px 24px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent); }
+.cover-editor-card h2 { font-size: 27px; line-height: 1.12; }
+.cover-editor-card p { font-size: 13px; }
+.cover-editor-sheet > h2 { font-family: var(--serif); font-size: 24px; font-weight: 500; }
+.cover-editor-fields { display: grid; gap: 10px; margin-top: 12px; }
+.cover-editor-fields label { display: flex; flex-direction: column; gap: 6px; color: var(--label); font-size: 11px; font-weight: 700; }
+.cover-editor-fields .field { height: 44px; }
+.cover-style-tabs { display: flex; gap: 7px; overflow-x: auto; margin: 14px -2px 0; padding: 2px 2px 6px; scrollbar-width: none; }
+.cover-style-tabs::-webkit-scrollbar { display: none; }
+.cover-style-tabs button { flex: none; min-height: 38px; border-radius: 12px; padding: 8px 13px; background: var(--badge); color: var(--muted); font-size: 12px; font-weight: 700; }
+.cover-style-tabs button.active { background: var(--brown); color: var(--bg); box-shadow: 0 2px 8px color-mix(in srgb, var(--brown) 22%, transparent); }
+.cover-editor-done { height: 48px; margin-top: 10px; border-radius: 14px; }
+
+.full-cover-editor { padding-top: 14px; }
+.cover-editor-stage { width: min(100%, 238px); margin: 0 auto 14px; touch-action: none; user-select: none; }
+.cover-artwork { position: relative; width: 100%; aspect-ratio: 1 / 1.414; overflow: hidden; border-radius: 20px; background: linear-gradient(145deg, #eee2d5, #cfb89f); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 12px 34px color-mix(in srgb, var(--ink) 14%, transparent); color: var(--ink); }
+.cover-artwork.botanical { background: #e8ddce url("/brand/botanical-branch-watercolor.png") center / cover no-repeat; }
+.cover-artwork.familyLine { background: #eee5da url("/brand/onboarding-family-selected.png") center bottom / 118% auto no-repeat; }
+.cover-artwork.walnut { background: linear-gradient(145deg, #9b7a5d, #4d3529); }
+.cover-artwork-photo { position: absolute; inset: -12%; width: 124%; height: 124%; max-width: none; object-fit: cover; transform-origin: center; pointer-events: none; }
+.cover-artwork-overlay { position: absolute; inset: 0; pointer-events: none; }
+.cover-artwork-overlay.dark { background: linear-gradient(180deg, #000 0%, #0008 35%, #0005 68%, #0009 100%); }
+.cover-artwork-overlay.light { background: linear-gradient(180deg, #fff 0%, #ffffffb8 35%, #ffffff80 68%, #ffffffcf 100%); }
+.cover-artwork-text, .cover-artwork-logo { position: absolute; z-index: 2; width: 84%; text-align: center; cursor: move; touch-action: none; text-shadow: 0 1px 5px #fff7; }
+.cover-artwork-text.selected, .cover-artwork-logo.selected { outline: 1.5px solid #fff; outline-offset: 7px; border-radius: 4px; box-shadow: 0 0 0 1px #0008; }
+.cover-artwork-text h2 { font-family: var(--serif); font-size: clamp(23px, 8vw, 34px); font-weight: 500; line-height: 1.08; }
+.cover-artwork-text p { margin-top: 9px; font-family: var(--serif); font-size: 12px; font-style: italic; }
+.cover-artwork-logo { width: 43%; transform-origin: center; }
+.cover-artwork-logo img { display: block; width: 100%; height: auto; pointer-events: none; }
+.cover-object-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; padding: 4px; border-radius: 14px; background: var(--badge); }
+.cover-object-tabs button { min-height: 38px; border-radius: 10px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.cover-object-tabs button.active { background: var(--card); color: var(--terracotta); box-shadow: 0 2px 7px color-mix(in srgb, var(--ink) 10%, transparent); }
+.cover-tool-panel { display: grid; gap: 10px; margin-top: 12px; }
+.cover-tool-panel > label, .cover-scale-control { display: flex; flex-direction: column; gap: 6px; color: var(--label); font-size: 11px; font-weight: 700; }
+.cover-tool-panel input[type="range"], .cover-scale-control input[type="range"] { width: 100%; accent-color: var(--brown); }
+.cover-photo-actions, .cover-choice-row { display: flex; gap: 7px; }
+.cover-photo-actions button, .cover-choice-row button { flex: 1; min-height: 40px; border-radius: 11px; padding: 8px; background: var(--badge); color: var(--muted); font-size: 11px; font-weight: 700; }
+.cover-choice-row button.active { background: var(--brown); color: var(--bg); }
+.cover-scale-control { margin-top: 10px; }
+.cover-drag-hint { margin: 9px 0 0; color: var(--label); font-size: 11px; line-height: 1.4; text-align: center; }
+
+.cover-editor-preview {
+  position: relative;
+  min-height: 310px;
+  overflow: hidden;
+  border-radius: 22px 22px 18px 18px;
+  padding: 34px 28px;
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--ink) 16%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.cover-editor-preview::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid color-mix(in srgb, var(--terracotta) 28%, transparent);
+  border-radius: 15px;
+  pointer-events: none;
+}
+.cover-editor-preview.linen { background: linear-gradient(145deg, #eee2d5, #cfb89f); }
+.cover-editor-preview.botanical { background: #e8ddce url("/brand/botanical-branch-watercolor.png") center / cover no-repeat; }
+.cover-editor-preview.familyLine { background: #eee5da url("/brand/onboarding-family-selected.png") center bottom / 118% auto no-repeat; }
+.cover-editor-preview.walnut { background: linear-gradient(145deg, #9b7a5d, #4d3529); color: var(--bg); }
+.cover-editor-preview img { position: absolute; z-index: 1; bottom: 28px; width: min(118px, 36%); max-height: 44px; object-fit: contain; opacity: .72; filter: brightness(0) saturate(100%) invert(23%) sepia(15%) saturate(1485%) hue-rotate(341deg) brightness(92%) contrast(88%); }
+.cover-editor-preview h2 { position: relative; z-index: 1; max-width: 92%; font-family: var(--serif); font-size: 30px; font-weight: 500; }
+.cover-editor-preview p { position: relative; z-index: 1; margin-top: 10px; font-family: var(--serif); font-style: italic; opacity: .78; }
+.cover-subtitle-field { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+.cover-subtitle-field > span { color: var(--label); font-size: 12px; font-weight: 700; }
+.cover-style-label { margin-top: 18px; }
+
 .cover-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
 }
 
@@ -298,16 +405,22 @@
 }
 
 .cover.linen {
-  background: linear-gradient(135deg, #d7c1a1, #9f8767);
+  background: linear-gradient(135deg, var(--cream), var(--brown));
   color: var(--ink);
 }
 
-.cover.dark {
-  background: #3a2417;
+.cover.botanical {
+  background: #e8ddce url("/brand/botanical-branch-watercolor.png") center / cover no-repeat;
+  color: var(--ink);
+}
+
+.cover.familyLine {
+  background: #eee5da url("/brand/onboarding-family-selected.png") center / 120% auto no-repeat;
+  color: var(--ink);
 }
 
 .cover.walnut {
-  background: linear-gradient(135deg, #8a5b36, #51301d);
+  background: linear-gradient(135deg, var(--brown), var(--ink));
 }
 
 .sticky-action {
@@ -316,6 +429,7 @@
 
 .preview-screen {
   gap: 12px;
+  overflow: hidden;
 }
 
 .book-frame {
@@ -324,16 +438,41 @@
   min-height: 438px;
 }
 
+.reader-frame { flex: 1; min-height: 0; padding: 0; border-radius: 0; box-shadow: none; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.reader-frame.book-frame { background: #fbf7ef; }
+.reader-frame .book-page, .reader-frame .book-cover-page, .reader-frame .book-divider-page { min-height: 100%; border-radius: 0; background: #fbf7ef; }
+.reader-frame .book-page { padding: 42px 28px 30px; }
+.reader-frame .book-cover-page { padding: 0; justify-content: stretch; }
+.reader-frame .book-cover-page .cover-artwork { min-height: 100%; border-radius: 0; box-shadow: none; }
+.reader-frame .book-cover-page h2 { margin-top: 0; font-size: clamp(34px, 9vw, 46px); line-height: 1.08; }
+.reader-frame .book-cover-page > span { margin-top: 12px; color: var(--muted); font-family: var(--serif); font-size: 16px; font-style: italic; letter-spacing: 0; text-transform: none; }
+.reader-frame .book-cover-page img { order: 3; width: 108px; max-height: 44px; object-fit: contain; margin: auto 0 0; opacity: .72; filter: brightness(0) saturate(100%) invert(23%) sepia(15%) saturate(1485%) hue-rotate(341deg) brightness(92%) contrast(88%); }
+.reader-frame .book-divider-page { padding: 50px 30px; }
+.reader-frame .book-page::after { content: ""; position: absolute; width: 80px; height: 110px; left: 8px; bottom: 8px; opacity: .08; background: url("/brand/botanical-branch-watercolor.png") left bottom / contain no-repeat; pointer-events: none; }
+.reader-frame .book-page { position: relative; }
+.reader-frame .page-copy { position: relative; z-index: 1; }
+.reader-frame .story-inline-photo { margin: 24px 0 14px; }
+.reader-frame .story-inline-photo img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 10px; }
+.reader-frame .page-copy h2 { color: var(--terracotta); font-size: 30px; line-height: 1.12; margin-bottom: 6px; }
+.reader-frame .page-copy .formatted-story { font-family: var(--serif); font-size: 17px; line-height: 1.58; }
+.reader-frame .formatted-story.has-drop-cap > p:first-of-type::first-letter { float: none; margin: 0; color: inherit; font: inherit; }
+.reader-frame .page-author { order: -1; margin: 0 0 22px; padding: 0; color: var(--muted); font-size: 15px; }
+.custom-reader-page p { max-width: 90%; font-family: var(--serif); font-size: 29px; line-height: 1.35; color: var(--ink); white-space: pre-wrap; }
+
 .book-frame.linen {
-  background: #cdb894;
+  background: var(--cream);
 }
 
-.book-frame.dark {
-  background: #2c1a11;
+.book-frame.botanical {
+  background: #e8ddce url("/brand/botanical-branch-watercolor.png") center / cover no-repeat;
+}
+
+.book-frame.familyLine {
+  background: #eee5da;
 }
 
 .book-frame.walnut {
-  background: #6d452a;
+  background: var(--brown);
 }
 
 .book-page {
@@ -346,6 +485,65 @@
   flex-direction: column;
   gap: 18px;
 }
+
+.book-cover-page,
+.book-divider-page {
+  min-height: 410px;
+  border-radius: 16px;
+  padding: 34px 28px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.book-cover-page img {
+  width: min(230px, 78%);
+  margin-bottom: 34px;
+}
+
+.book-cover-page p,
+.book-divider-page span {
+  color: var(--terracotta);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.book-cover-page h2,
+.book-divider-page h2 {
+  margin: 10px 0;
+  font-family: var(--font-serif);
+  font-size: 34px;
+}
+
+.book-cover-page > span { color: var(--gold); }
+
+.divider-builder { margin-top: 22px; }
+.section-hint { margin: -4px 0 10px; color: var(--label); font-size: 13px; }
+.divider-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.divider-presets button {
+  border: 1px solid color-mix(in srgb, var(--terracotta) 35%, transparent);
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 700;
+}
+.divider-row {
+  margin-top: 9px;
+  border-left: 4px solid var(--terracotta);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.divider-row button { color: var(--terracotta); font-size: 22px; }
 
 .page-photo {
   height: 174px;
@@ -414,12 +612,20 @@
 }
 
 .pager {
+  flex: none;
   display: grid;
   grid-template-columns: 64px 1fr 64px;
   align-items: center;
   gap: 8px;
   font-size: 13px;
   color: var(--label);
+}
+
+.preview-screen > .btn-primary { flex: none; }
+
+@media (min-width: 900px) {
+  .cover-editor-backdrop { align-items: center; padding: 24px; }
+  .cover-editor-sheet { max-height: calc(100dvh - 48px); border-radius: 28px; }
 }
 
 .pager span {
@@ -508,6 +714,16 @@
   margin-bottom: 8px;
 }
 
+.family-danger-zone {
+  margin: 28px 0 18px;
+  border: 1px solid color-mix(in srgb, #a43f35 28%, transparent);
+  border-radius: 18px;
+  padding: 16px;
+  background: color-mix(in srgb, #a43f35 5%, var(--card));
+}
+.family-danger-zone h2 { margin: 0 0 6px; font-size: 17px; }
+.family-danger-zone p { margin: 0 0 14px; color: var(--label); font-size: 13px; }
+
 .member-row {
   min-height: 0;
   border-radius: 16px;
@@ -522,7 +738,7 @@
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--olive);
   color: var(--bg);
   display: grid;
   place-items: center;
@@ -552,7 +768,7 @@
 .invite-card {
   width: 100%;
   border-radius: 18px;
-  background: var(--ink);
+  background: var(--olive);
   color: var(--bg);
   padding: 14px 15px;
   display: flex;
@@ -699,6 +915,7 @@
   place-items: end center;
   padding: 18px;
   z-index: 5;
+  animation: modal-shade-enter 220ms ease both;
 }
 
 .invite-modal {
@@ -709,6 +926,22 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  animation: modal-sheet-enter 280ms cubic-bezier(.22, .78, .24, 1) both;
+}
+
+@keyframes modal-shade-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-sheet-enter {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .invite-modal { animation: none; }
 }
 
 .invite-modal h2 {

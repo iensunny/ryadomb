@@ -17,11 +17,19 @@ export function Home({
   onOpenStory,
   onInvite,
 }: Props) {
+  const count = stories.length;
+  const countText = count % 10 === 1 && count % 100 !== 11
+    ? `собрана ${count} история`
+    : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14)
+      ? `собрано ${count} истории`
+      : `собрано ${count} историй`;
+
   return (
     <section className="screen screen-scroll with-nav">
       <header className="home-head">
         <span className="kicker quiet">{familyName}</span>
         <h1>Истории</h1>
+        {count > 0 && <p className="family-story-count">В семейной книге {countText}</p>}
       </header>
 
       <button className="cta-card" onClick={onNewStory}>

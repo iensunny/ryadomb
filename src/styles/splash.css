@@ -4,69 +4,109 @@
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: var(--ink);
-  color: var(--bg);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 44%, rgba(255,255,255,.8), transparent 38%), var(--bg);
+  color: var(--ink);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 32px;
+  animation: splash-exit 2s ease both;
 }
 
-.splash-partner-logo {
-  position: absolute;
-  top: calc(28px + var(--vk-inset-top, 0px));
-  width: min(58vw, 240px);
-  height: auto;
-  mix-blend-mode: screen;
-}
-
-.splash-screen h1 {
-  font-family: var(--serif);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 48px;
-  line-height: 1.12;
-  margin-bottom: 0;
-}
-
-.loader {
-  position: absolute;
-  bottom: 44px;
-  width: 42px;
-  height: 3px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--cream) 22%, transparent);
-  overflow: hidden;
-}
-
-.loader::after {
+.splash-screen::before,
+.splash-screen::after {
   content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--terracotta) 7%, transparent);
+}
+.splash-screen::before { left: -170px; top: -130px; }
+.splash-screen::after { right: -180px; bottom: -140px; }
+
+.splash-mark { position: relative; width: min(78vw, 350px); padding: 22px 8px; }
+
+.splash-foundation-logo {
+  position: absolute;
+  z-index: 2;
+  top: calc(26px + var(--vk-inset-top, 0px));
+  left: 50%;
+  width: min(31vw, 154px);
+  height: auto;
+  transform: translateX(-50%);
+  opacity: 0;
+  filter: sepia(.12);
+  animation: foundation-arrive .45s ease .18s forwards;
+}
+
+.splash-brand-logo {
+  position: relative;
+  z-index: 2;
   display: block;
-  width: 45%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--bg);
-  animation: loader-slide 1s ease-in-out infinite;
+  width: 100%;
+  height: auto;
+  transform: translateX(26%);
+  opacity: 0;
+  filter: blur(2px);
+  animation: logo-soft-arrive .85s ease .28s forwards;
 }
 
-@keyframes loader-slide {
-  0% {
-    transform: translateX(-110%);
-  }
-  100% {
-    transform: translateX(240%);
-  }
+.splash-tagline {
+  margin-top: 8px;
+  color: var(--gold);
+  font-family: var(--serif);
+  font-size: clamp(15px, 4vw, 18px);
+  font-style: italic;
+  opacity: 0;
+  transform: translateY(7px);
+  animation: tagline-arrive .32s ease 1.22s forwards;
 }
 
-@keyframes splash-fade {
-  0%,
-  72% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    pointer-events: none;
-  }
+.splash-heart-glow {
+  position: absolute;
+  z-index: 1;
+  left: 67%;
+  top: 50%;
+  width: 42px;
+  height: 42px;
+  transform: translate(-50%, -50%) scale(.82);
+  opacity: 0;
+  animation: heart-glow 1.2s ease-in-out .72s infinite alternate;
+}
+
+.splash-heart-glow::before {
+  content: "♥";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(190, 48, 38, .62);
+  font: 42px/1 Georgia, serif;
+  filter: blur(5px);
+  text-shadow:
+    0 0 8px rgba(190, 48, 38, .5),
+    0 0 18px rgba(190, 48, 38, .3);
+}
+
+@keyframes logo-soft-arrive { to { opacity: 1; filter: none; } }
+@keyframes foundation-arrive { to { opacity: .42; } }
+@keyframes tagline-arrive { to { opacity: 1; transform: translateY(0); } }
+@keyframes heart-glow {
+  from { opacity: .22; transform: translate(-50%, -50%) scale(.82); }
+  to { opacity: .82; transform: translate(-50%, -50%) scale(1.28); }
+}
+@keyframes splash-exit { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+.splash-screen.splash-preview { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-screen, .splash-foundation-logo, .splash-brand-logo, .splash-heart-glow, .splash-tagline { animation: none; }
+  .splash-foundation-logo { opacity: .42; }
+  .splash-brand-logo { opacity: 1; filter: none; }
+  .splash-heart-glow { opacity: .45; }
+  .splash-tagline { opacity: 1; transform: none; }
 }

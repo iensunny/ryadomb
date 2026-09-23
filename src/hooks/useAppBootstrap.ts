@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { hasJoinFragment } from "../constants/fragments";
 import type { Screen } from "../constants/navigation";
-import { bridge, onVkFragment, usingBridgeMock } from "../vk/bridge";
+import { bridge, onVkFragment } from "../vk/bridge";
 import { bootSession, type AppSession } from "../vk/session";
 import { getOnboarded, setOnboarded } from "../vk/storage";
 
@@ -24,9 +24,7 @@ export function useAppBootstrap(setScreen: SetScreen) {
       return;
     }
 
-    const pause = usingBridgeMock
-      ? Promise.resolve()
-      : new Promise((resolve) => window.setTimeout(resolve, 400));
+    const pause = new Promise((resolve) => window.setTimeout(resolve, 2000));
 
     Promise.all([bootSession(), pause])
       .then(([next]) => {

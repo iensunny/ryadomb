@@ -1,235 +1,57 @@
-import { jsPDF } from "jspdf";
-import { coverPdfColors, coverTitles } from "../constants/covers";
-import type { CoverKind } from "../domain/book";
-import type { Story } from "../domain/story";
-import {
-  firstStoryPhoto,
-  storyPlainText,
-} from "./storyFormat";
-import { bridge } from "../vk/bridge";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { CoverArtwork } from "../ui/CoverArtwork";
+import { bookDocument, layoutBook, PAPER, type BookOptions } from "./bookLayout";
+import { drawBookPages } from "./bookPrint";
+import { bridge, usingBridgeMock } from "../vk/bridge";
 
-type FontCache = { regular: string; italic: string };
-let fontCache: Promise<FontCache | null> | null = null;
+export type PreparedPdf = { url: string; filename: string } | null;
 
-function arrayBufferToBase64(buffer: ArrayBuffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
+async function imageData(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Не удалось загрузить изображение для PDF");
+  return new Uint8Array(await response.arrayBuffer());
 }
 
-async function loadFonts() {
-  if (!fontCache) {
-    fontCache = (async () => {
-      try {
-        const [regularResponse, italicResponse] = await Promise.all([
-          fetch("./fonts/NotoSerif-Regular.ttf"),
-          fetch("./fonts/NotoSerif-Italic.ttf"),
-        ]);
-        if (!regularResponse.ok || !italicResponse.ok) return null;
-        const [regular, italic] = await Promise.all([
-          regularResponse.arrayBuffer(),
-          italicResponse.arrayBuffer(),
-        ]);
-        return {
-          regular: arrayBufferToBase64(regular),
-          italic: arrayBufferToBase64(italic),
-        };
-      } catch {
-        return null;
-      }
-    })();
-  }
-  return fontCache;
-}
-
-function registerFonts(doc: jsPDF, fonts: FontCache) {
-  doc.addFileToVFS("NotoSerif-Regular.ttf", fonts.regular);
-  doc.addFileToVFS("NotoSerif-Italic.ttf", fonts.italic);
-  doc.addFont("NotoSerif-Regular.ttf", "NotoSerif", "normal");
-  doc.addFont("NotoSerif-Italic.ttf", "NotoSerif", "italic");
-}
-
-function wrapLines(doc: jsPDF, text: string, maxWidth: number) {
-  return doc.splitTextToSize(text, maxWidth) as string[];
-}
-
-async function loadImageData(url: string) {
+export async function createBookPdf(options: BookOptions) {
+  const [doc, pages, botanical, { default: html2canvas }] = await Promise.all([
+    bookDocument(), layoutBook(options), imageData("/brand/botanical-branch-watercolor.png"), import("html2canvas"),
+  ]);
+  const host = document.createElement("div");
+  host.className = "edition-export";
+  host.innerHTML = renderToStaticMarkup(createElement(CoverArtwork, { title: options.bookTitle, subtitle: options.coverSubtitle, cover: options.cover, design: options.coverDesign }));
+  document.body.appendChild(host);
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-    const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-      img.onerror = reject;
-      img.src = dataUrl;
-    });
-    return { dataUrl, ...dims };
-  } catch {
-    return null;
-  }
+    await document.fonts.ready;
+    await Promise.all(Array.from(host.querySelectorAll("img")).map((image) => image.decode()));
+    if (options.coverDesign?.logoColor === "light") {
+      const logo = host.querySelector<HTMLImageElement>(".cover-artwork-logo img")!;
+      const white = document.createElement("canvas");
+      white.width = logo.naturalWidth; white.height = logo.naturalHeight;
+      const context = white.getContext("2d")!;
+      context.drawImage(logo, 0, 0);
+      context.globalCompositeOperation = "source-in";
+      context.fillStyle = "white"; context.fillRect(0, 0, white.width, white.height);
+      logo.src = white.toDataURL(); logo.style.filter = "none";
+      await logo.decode();
+    }
+    const canvas = await html2canvas(host, { scale: 3, useCORS: true, backgroundColor: PAPER, logging: false });
+    doc.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 148, 210);
+  } finally { host.remove(); }
+  await drawBookPages(doc, pages, botanical, imageData);
+  return doc;
 }
 
-function safeFilename(title: string) {
-  return (
-    title
-      .trim()
-      .replace(/[^\p{L}\p{N}\-_ ]+/gu, "")
-      .replace(/\s+/g, "-")
-      .slice(0, 48) || "semeynaya-kniga"
-  );
-}
-
-async function savePdf(doc: jsPDF, filename: string) {
-  const blob = doc.output("blob");
-  const objectUrl = URL.createObjectURL(blob);
-
-  try {
-    await bridge.send("VKWebAppDownloadFile", {
-      url: objectUrl,
-      filename,
-    });
-    return;
-  } catch {
-    // Локально и на desktop bridge может не скачать blob — fallback.
+export async function downloadBookPdf(options: BookOptions): Promise<PreparedPdf> {
+  const doc = await createBookPdf(options);
+  const filename = `${options.bookTitle.trim().replace(/[^\p{L}\p{N}\-_ ]+/gu, "").replace(/\s+/g, "-").slice(0, 48) || "semeynaya-kniga"}.pdf`;
+  const url = URL.createObjectURL(doc.output("blob"));
+  if (!usingBridgeMock) {
+    try {
+      await bridge.send("VKWebAppDownloadFile", { url, filename });
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      return null;
+    } catch { /* Keep the generated document available through the ordinary browser link. */ }
   }
-
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
-}
-
-export async function downloadBookPdf(options: {
-  bookTitle: string;
-  cover: CoverKind;
-  stories: Story[];
-}) {
-  const { bookTitle, cover, stories } = options;
-  const fonts = await loadFonts();
-  const doc = new jsPDF({
-    unit: "mm",
-    format: "a5",
-    orientation: "portrait",
-  });
-  if (fonts) {
-    registerFonts(doc, fonts);
-  }
-  const fontFamily = fonts ? "NotoSerif" : "times";
-
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 16;
-  const contentW = pageW - margin * 2;
-
-  doc.setFillColor(coverPdfColors[cover]);
-  doc.rect(0, 0, pageW, pageH, "F");
-  doc.setFillColor("#fffaf2");
-  doc.roundedRect(10, 12, pageW - 20, pageH - 24, 4, 4, "F");
-  doc.setFont(fontFamily, "normal");
-  doc.setTextColor("#3a2417");
-  doc.setFontSize(11);
-  doc.text("Семейные истории", pageW / 2, 36, { align: "center" });
-  doc.setFontSize(22);
-  const titleLines = wrapLines(doc, bookTitle, contentW - 8);
-  let titleY = 58;
-  for (const line of titleLines) {
-    doc.text(line, pageW / 2, titleY, { align: "center" });
-    titleY += 10;
-  }
-  doc.setFont(fontFamily, "italic");
-  doc.setFontSize(11);
-  doc.setTextColor("#8a6a3f");
-  doc.text(`Обложка «${coverTitles[cover]}»`, pageW / 2, pageH - 28, {
-    align: "center",
-  });
-
-  for (let index = 0; index < stories.length; index += 1) {
-    const story = stories[index];
-    doc.addPage();
-    doc.setFillColor("#f6ede1");
-    doc.rect(0, 0, pageW, pageH, "F");
-    doc.setFillColor("#fffaf2");
-    doc.roundedRect(8, 10, pageW - 16, pageH - 20, 3, 3, "F");
-
-    let y = margin + 4;
-    doc.setFont(fontFamily, "normal");
-    doc.setTextColor("#3a2417");
-    doc.setFontSize(16);
-    const heading = wrapLines(doc, story.title, contentW);
-    for (const line of heading) {
-      doc.text(line, margin, y);
-      y += 7;
-    }
-    y += 4;
-
-    const photoUrl = firstStoryPhoto(story);
-    if (photoUrl) {
-      const image = await loadImageData(photoUrl);
-      if (image) {
-        const maxH = 68;
-        const ratio = image.w / image.h;
-        let drawW = contentW;
-        let drawH = drawW / ratio;
-        if (drawH > maxH) {
-          drawH = maxH;
-          drawW = drawH * ratio;
-        }
-        const x = margin + (contentW - drawW) / 2;
-        const format = image.dataUrl.includes("image/png") ? "PNG" : "JPEG";
-        doc.addImage(image.dataUrl, format, x, y, drawW, drawH);
-        y += drawH + 6;
-      }
-    }
-
-    const body = storyPlainText(story.body);
-    doc.setFont(fontFamily, "normal");
-    doc.setFontSize(11);
-    doc.setTextColor("#5c4632");
-    const paragraphs = body
-      ? body.split(/\n\s*\n/)
-      : ["Текст истории пока не добавлен"];
-    for (const paragraph of paragraphs) {
-      const lines = wrapLines(doc, paragraph.trim(), contentW);
-      for (const line of lines) {
-        if (y > pageH - 28) {
-          doc.addPage();
-          doc.setFillColor("#f6ede1");
-          doc.rect(0, 0, pageW, pageH, "F");
-          doc.setFillColor("#fffaf2");
-          doc.roundedRect(8, 10, pageW - 16, pageH - 20, 3, 3, "F");
-          y = margin + 4;
-          doc.setFont(fontFamily, "normal");
-          doc.setFontSize(11);
-          doc.setTextColor("#5c4632");
-        }
-        doc.text(line, margin, y);
-        y += 5.4;
-      }
-      y += 3;
-    }
-
-    doc.setFont(fontFamily, "italic");
-    doc.setFontSize(10);
-    doc.setTextColor("#8a6a3f");
-    doc.text(story.author, margin, pageH - 18);
-    doc.setFont(fontFamily, "normal");
-    doc.setFontSize(9);
-    doc.text(`${index + 1} / ${stories.length}`, pageW - margin, pageH - 18, {
-      align: "right",
-    });
-  }
-
-  await savePdf(doc, `${safeFilename(bookTitle)}.pdf`);
+  return { url, filename };
 }

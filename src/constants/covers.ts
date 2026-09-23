@@ -1,9 +1,10 @@
 import type { CoverKind } from "../domain/book";
 
 export const covers: Array<{ id: CoverKind; title: string; pdfColor: string }> = [
-  { id: "linen", title: "Лён", pdfColor: "#cdb894" },
-  { id: "dark", title: "Тёмная", pdfColor: "#2c1a11" },
-  { id: "walnut", title: "Орех", pdfColor: "#6d452a" },
+  { id: "linen", title: "Тёплый лён", pdfColor: "#D7C4B1" },
+  { id: "botanical", title: "Семейная ветвь", pdfColor: "#E8DDCE" },
+  { id: "familyLine", title: "Одна линия", pdfColor: "#EEE5DA" },
+  { id: "walnut", title: "Орех", pdfColor: "#8B6F56" },
 ];
 
 export const coverTitles: Record<CoverKind, string> = covers.reduce(

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BackIcon, MicIcon } from "../icons";
 import type { Story } from "../domain/story";
-import { storyKindLabel } from "../lib/storyFormat";
 import { FormattedStoryBody } from "../ui/FormattedStoryBody";
 
 type Props = {
@@ -73,11 +72,17 @@ export function StoryDetail({
       </header>
 
       <article className="detail-card">
-        <span className="badge">{storyKindLabel(story)}</span>
         <h2>{story.title}</h2>
         <p className="detail-meta">
           {story.author} · {story.when}
         </p>
+        {story.categories && story.categories.length > 0 && (
+          <div className="detail-categories" aria-label="Категории">
+            {story.categories.map((category) => (
+              <span key={category}>{category}</span>
+            ))}
+          </div>
+        )}
 
         {story.kind === "audio" && (
           <div className="audio-player">
@@ -117,7 +122,7 @@ export function StoryDetail({
             <p className="kicker">Удаление</p>
             <h2>Удалить историю?</h2>
             <p>
-              «{story.title}» исчезнет из архива и из книги. Это действие нельзя
+              «{story.title}» исчезнет из семейных историй и из книги. Это действие нельзя
               отменить.
             </p>
             <div className="modal-actions-row">

@@ -67,3 +67,34 @@ export function CameraIcon() {
     </svg>
   );
 }
+
+export function DropCapIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 18 9.2 6h1.6L16 18M6.2 13h7.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18 9.5h3M19.5 8v3"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M4 5.5h9" stroke="currentColor" strokeWidth="1.2" opacity=".45" />
+    </svg>
+  );
+}
+
+export function SectionBreakIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M4 5.5h16M4 18.5h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4 12h5m6 0h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="m12 9.8 2.2 2.2-2.2 2.2L9.8 12 12 9.8Z" fill="currentColor" />
+    </svg>
+  );
+}

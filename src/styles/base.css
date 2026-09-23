@@ -1,17 +1,21 @@
 :root {
-  --bg: #f6ede1;
-  --card: #fffaf2;
-  --ink: #3a2417;
-  --terracotta: #b5563a;
-  --muted: #5c4632;
-  --gold: #8a6a3f;
-  --label: #a08968;
-  --body: #6b5842;
-  --cream: #e0c8ad;
-  --badge: #f3e6d6;
-  --line: color-mix(in srgb, var(--gold) 28%, var(--bg));
-  --serif: "Playfair Display", "Times New Roman", serif;
-  --sans: "Manrope", "Segoe UI", sans-serif;
+  --bg: #f8f4ed;
+  --card: #fffdf8;
+  --ink: #432d21;
+  --terracotta: #a65e3f;
+  --muted: #5e5147;
+  --brown: #8b6f56;
+  --olive: #6b7f6a;
+  --graphite: #3e3a34;
+  --gold: var(--brown);
+  --label: #8b7562;
+  --body: #5e5147;
+  --cream: #d7c4b1;
+  --badge: #eee3d6;
+  --line: color-mix(in srgb, var(--brown) 25%, var(--bg));
+  --serif: "Lora", Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --script: "Marck Script", cursive;
 }
 
 * {
@@ -72,6 +76,59 @@ button {
   display: flex;
   flex-direction: column;
   position: relative;
+  isolation: isolate;
+}
+
+.app-main::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -54px;
+  top: 15%;
+  width: 190px;
+  height: 290px;
+  background: url("/brand/botanical-branch-watercolor.png") center / contain no-repeat;
+  opacity: 0.055;
+  pointer-events: none;
+}
+
+.app-shell[data-screen="preview"] .app-main::before {
+  display: none;
+}
+
+.brand-lockup {
+  width: 168px;
+  height: auto;
+  margin: 4px 8px 28px;
+}
+
+.mobile-brand-bar {
+  flex: none;
+  height: 72px;
+  padding: 14px 22px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 92%, var(--card));
+}
+
+.mobile-brand-bar img {
+  display: block;
+  width: 154px;
+  height: auto;
+}
+
+.mobile-brand-bar span {
+  max-width: 90px;
+  color: var(--terracotta);
+  font-family: var(--script);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: right;
 }
 
 .app-sidebar .nav-item {
@@ -198,9 +255,50 @@ button {
   flex: 1;
   min-height: 0;
   width: 100%;
+  animation: tab-screen-enter 260ms cubic-bezier(.22, .72, .24, 1) both;
+}
+
+.app-shell[data-screen="home"] .app-main > .screen {
+  animation-name: home-screen-enter;
+  animation-duration: 400ms;
+}
+
+.app-shell:is(
+  [data-screen="story-detail"],
+  [data-screen="new-story"],
+  [data-screen="profile"],
+  [data-screen="preview"],
+  [data-screen="order"],
+  [data-screen="join"]
+) .app-main > .screen {
+  animation-name: detail-screen-enter;
+  animation-duration: 310ms;
+}
+
+@keyframes home-screen-enter {
+  from { opacity: 0; transform: translateY(10px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes tab-screen-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes detail-screen-enter {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main > .screen { animation: none !important; }
 }
 
 @media (min-width: 900px) {
+  .mobile-brand-bar {
+    display: none;
+  }
+
   .app-sidebar {
     display: flex;
     flex-direction: column;
@@ -258,8 +356,8 @@ button {
   width: 100%;
   height: 54px;
   border-radius: 16px;
-  background: var(--ink);
-  color: #fffaf2;
+  background: var(--brown);
+  color: var(--bg);
   font-weight: 700;
   font-size: 16px;
   letter-spacing: 0.01em;
@@ -281,8 +379,8 @@ button {
   min-height: 48px;
   border-radius: 15px;
   border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--brown);
   font-weight: 800;
   font-size: 14px;
   display: flex;
@@ -292,12 +390,24 @@ button {
   padding-top: 2px;
 }
 
+.pdf-status {
+  margin: -2px 4px 0;
+  color: var(--label);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.pdf-download-link {
+  text-decoration: none;
+}
+
 .kicker {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--terracotta);
+  color: var(--brown);
 }
 
 .kicker.quiet {

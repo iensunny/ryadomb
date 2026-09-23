@@ -1,0 +1,22 @@
+@font-face { font-family: BookSerif; src: url('/fonts/NotoSerif-Regular.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: BookSerif; src: url('/fonts/NotoSerif-Italic.ttf') format('truetype'); font-style: italic; font-weight: 400; font-display: block; }
+
+.cover-artwork { container-type: inline-size; aspect-ratio: 148 / 210; border-radius: 2px; background: #f3ebdf; color: #432d21; }
+.cover-artwork.linen { background: #f3ebdf; }
+.cover-artwork.botanical { background: #fbf7ef url('/brand/botanical-branch-watercolor.png') 92% 56% / 65% auto no-repeat; }
+.cover-artwork.familyLine { background: #fbf7ef url('/brand/onboarding-family-selected.png') center 68% / 92% auto no-repeat; }
+.cover-artwork.walnut { background: #8b6f56; }
+.cover-artwork-photo { inset: 0; width: 100%; height: 100%; }
+.cover-artwork-text { text-shadow: none; }
+.cover-artwork-text h2 { font-family: BookSerif, serif; font-size: 11cqw; font-weight: 400; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+.cover-artwork-text p { font-family: BookSerif, serif; font-size: 3.4cqw; line-height: 1.4; margin: 3cqw 0 0; }
+.cover-artwork-logo { width: 35%; }
+.cover-artwork-logo img { max-height: none; }
+.cover-editor-stage { aspect-ratio: 148 / 210; }
+.edition-reader { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 6px 8px 16px; }
+.edition-page { width: 100%; max-width: 560px; margin: 0 auto; aspect-ratio: 148 / 210; box-shadow: 0 6px 20px #432d2114; }
+.edition-page .cover-artwork { border-radius: 0; box-shadow: none; }
+.book-paper { display: block; width: 100%; height: auto; }
+.edition-export { position: fixed; left: -10000px; top: 0; width: 560px; height: 794.5946px; }
+.edition-export .cover-artwork { box-shadow: none; border-radius: 0; }
+.preview-screen .pager { flex-shrink: 0; }

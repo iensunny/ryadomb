@@ -24,7 +24,7 @@ export function Profile({
     <section className="screen screen-scroll profile-screen">
       <header className="page-head">
         <p className="kicker">Личный кабинет</p>
-        <h1>Ваш семейный архив</h1>
+        <h1>Ваши семейные истории</h1>
         <p>Истории, семейная книга и профиль ВКонтакте в одном месте.</p>
       </header>
 

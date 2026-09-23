@@ -46,9 +46,9 @@
 }
 
 .tab.active {
-  background: var(--ink);
+  background: var(--brown);
   color: var(--bg);
-  border-color: var(--ink);
+  border-color: var(--brown);
 }
 
 .composer-tabs {
@@ -98,7 +98,7 @@
   width: 82px;
   height: 82px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--olive);
   color: var(--bg);
   display: grid;
   place-items: center;
@@ -146,12 +146,59 @@
 }
 
 .field:focus,
-.area:focus {
+.area:focus,
+.rich-area:focus {
   border-color: color-mix(in srgb, var(--ink) 40%, var(--line));
 }
 
 .story-title-field {
-  height: 46px;
+  height: 64px;
+  border-radius: 18px;
+  padding: 0 18px;
+  font-family: var(--serif);
+  font-size: clamp(21px, 5.4vw, 28px);
+  font-weight: 500;
+}
+
+.story-category-fieldset {
+  border: 0;
+  padding: 2px 0 4px;
+  min-width: 0;
+}
+
+.story-category-fieldset legend {
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.story-category-fieldset > p {
+  color: var(--label);
+  font-size: 12px;
+  margin-bottom: 9px;
+}
+
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.category-chip {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--brown);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.category-chip.active {
+  border-color: var(--brown);
+  background: var(--brown);
+  color: var(--bg);
 }
 
 .story-editor {
@@ -161,7 +208,8 @@
   background: var(--card);
 }
 
-.area {
+.area,
+.rich-area {
   width: 100%;
   min-height: 150px;
   border: 0;
@@ -177,6 +225,57 @@
   word-break: break-word;
 }
 
+.rich-area {
+  white-space: pre-wrap;
+  caret-color: var(--terracotta);
+}
+
+.rich-area-compact {
+  min-height: 72px;
+}
+
+.rich-area:empty::before {
+  content: attr(data-placeholder);
+  color: color-mix(in srgb, var(--muted) 54%, transparent);
+  pointer-events: none;
+}
+
+.rich-area strong {
+  font-weight: 700;
+}
+
+.rich-area em {
+  font-style: italic;
+}
+
+.rich-area q,
+.formatted-story q {
+  color: var(--brown);
+  font-family: var(--serif);
+  font-style: italic;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--terracotta) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.rich-area q::before,
+.rich-area q::after,
+.formatted-story q::before,
+.formatted-story q::after {
+  color: var(--terracotta);
+}
+
+.rich-area.has-drop-cap::first-letter {
+  float: left;
+  margin: 0.06em 0.1em 0 0;
+  color: var(--terracotta);
+  font-family: var(--serif);
+  font-size: 3.2em;
+  font-weight: 600;
+  line-height: 0.78;
+}
+
 .area-compact {
   min-height: 72px;
 }
@@ -184,19 +283,24 @@
 .format-toolbar {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 3px;
-  min-height: 40px;
-  padding: 5px 7px;
-  border-bottom: 1px solid var(--line);
+  gap: 4px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink) 9%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .format-button {
-  width: 30px;
-  height: 28px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   border: 0;
   background: transparent;
   font-family: var(--serif);
@@ -206,6 +310,16 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
+}
+
+.format-button:active {
+  background: var(--badge);
+  transform: scale(0.96);
+}
+
+.format-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .format-button.is-bold {
@@ -222,10 +336,16 @@
 }
 
 .format-divider-button {
-  width: 38px;
+  width: 72px;
   font-family: var(--sans);
-  font-size: 12px;
-  letter-spacing: 0.05em;
+  font-size: 10px;
+  font-weight: 600;
+  gap: 3px;
+}
+
+.format-divider-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .format-separator {
@@ -267,7 +387,7 @@
   border-radius: 12px;
 }
 
-.editor-inline-photo button {
+.editor-inline-photo-frame > button:not(.editor-photo-edit) {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -279,7 +399,7 @@
   line-height: 1;
 }
 
-.editor-inline-photo button {
+.editor-inline-photo-frame > button:not(.editor-photo-edit) {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -289,6 +409,30 @@
   background: rgba(42, 24, 16, 0.78);
   color: #fff;
   line-height: 1;
+}
+
+.editor-photo-edit {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.editor-photo-edit > span {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: rgba(62, 58, 52, 0.72);
+  color: var(--bg);
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
 }
 
 .story-episode-divider {
@@ -391,6 +535,189 @@
   z-index: 2;
   flex: none;
   box-shadow: 0 -12px 22px var(--bg);
+}
+
+.photo-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  background: rgba(62, 58, 52, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: editor-backdrop-enter 220ms ease both;
+}
+
+.photo-editor-modal {
+  width: min(100%, 620px);
+  min-height: 100%;
+  padding: max(14px, var(--vk-inset-top, 0px)) 16px max(18px, var(--vk-inset-bottom, 0px));
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  animation: editor-modal-enter 300ms cubic-bezier(.22, .78, .24, 1) both;
+}
+
+@keyframes editor-backdrop-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes editor-modal-enter {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.photo-editor-modal > header {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-editor-modal > header h2 {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.photo-editor-modal > header button {
+  min-height: 40px;
+  color: var(--brown);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.photo-editor-modal > header button:last-child {
+  color: var(--terracotta);
+}
+
+.photo-editor-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--graphite);
+  display: grid;
+  place-items: center;
+}
+
+.photo-editor-stage.landscape {
+  aspect-ratio: 4 / 3;
+}
+
+.photo-editor-stage.portrait {
+  width: min(76%, 420px);
+  aspect-ratio: 3 / 4;
+  align-self: center;
+}
+
+.photo-editor-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: move;
+}
+
+.photo-editor-stage > span {
+  position: absolute;
+  color: var(--bg);
+  font-size: 13px;
+}
+
+.photo-editor-hint {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.photo-aspect-control,
+.photo-backdrop-control > div {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.photo-aspect-control button,
+.photo-backdrop-control button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--brown);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photo-aspect-control button[aria-pressed="true"],
+.photo-backdrop-control button[aria-pressed="true"] {
+  border-color: var(--brown);
+  background: var(--brown);
+  color: var(--bg);
+}
+
+.photo-caption-control,
+.photo-backdrop-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--brown);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photo-caption-control input {
+  width: 100%;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  outline: none;
+}
+
+.photo-caption-control input:focus {
+  border-color: var(--brown);
+}
+
+.photo-backdrop-control > div {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.photo-backdrop-control > input {
+  width: 100%;
+  accent-color: var(--terracotta);
+}
+
+.photo-zoom-control {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 0 4px;
+  color: var(--brown);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photo-zoom-control input {
+  width: 100%;
+  accent-color: var(--terracotta);
+}
+
+@media (min-width: 640px) {
+  .photo-editor-modal {
+    min-height: auto;
+    margin: 28px 0;
+    border-radius: 24px;
+  }
 }
 
 .empty-family {

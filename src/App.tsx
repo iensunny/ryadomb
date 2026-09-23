@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { navItems } from "./constants/navigation";
 import type { CoverKind } from "./domain/book";
-import type { Story } from "./domain/story";
 import { useAppBootstrap } from "./hooks/useAppBootstrap";
 import { useAppNavigation } from "./hooks/useAppNavigation";
 import { useStoriesBook } from "./hooks/useStoriesBook";
@@ -50,10 +49,14 @@ export function App() {
     allBookStories,
     toggleBook,
     updateActiveBook,
-    reorderBookStories,
+    reorderBookItems,
     saveStory,
     deleteStory,
     setCover,
+    addBookPage,
+    updateBookPage,
+    removeBookPage,
+    deleteFamily,
   } = useStoriesBook(session);
 
   const familyName = session
@@ -83,9 +86,17 @@ export function App() {
   );
 
   return (
-    <div className={desktop ? "app-shell is-desktop" : "app-shell"}>
+    <div
+      className={desktop ? "app-shell is-desktop" : "app-shell"}
+      data-screen={screen}
+    >
       {showShell && session && (
         <aside className="app-sidebar">
+          <img
+            className="brand-lockup"
+            src="/brand/logo-primary.png"
+            alt="Семейные истории"
+          />
           <nav className="sidebar-nav" aria-label="Основная навигация">
             {nav}
           </nav>
@@ -93,6 +104,12 @@ export function App() {
       )}
 
       <div className="app-main">
+        {showShell && session && (
+          <header className="mobile-brand-bar">
+            <img src="/brand/logo-primary.png" alt="Семейные истории" />
+            <span>Живая память семьи</span>
+          </header>
+        )}
         {screen === "splash" && <Splash />}
         {screen === "vk-required" && (
           <section className="screen join-screen">
@@ -145,14 +162,12 @@ export function App() {
         {screen === "stories" && (
           <Library
             stories={stories}
-            selectedIds={activeBook.storyIds}
-            activeBookTitle={activeBook.title}
+            userId={session?.user.id}
             onNewStory={() => {
               setEditingStoryId(null);
               setScreen("new-story");
             }}
             onOpenStory={(storyId) => openStory(storyId, "stories")}
-            onToggleBook={toggleBook}
           />
         )}
         {screen === "book" && (
@@ -161,8 +176,13 @@ export function App() {
             book={activeBook}
             onRenameBook={(title) => updateActiveBook({ title })}
             onToggleStory={toggleBook}
-            onReorderStories={reorderBookStories}
+            onReorderItems={reorderBookItems}
             onCoverChange={(cover: CoverKind) => setCover(cover)}
+            onCoverSubtitleChange={(coverSubtitle) => updateActiveBook({ coverSubtitle })}
+            onCoverDesignChange={(coverDesign) => updateActiveBook({ coverDesign })}
+            onAddPage={addBookPage}
+            onUpdatePage={updateBookPage}
+            onRemovePage={removeBookPage}
             onPreview={() => setScreen("preview")}
           />
         )}
@@ -173,13 +193,17 @@ export function App() {
             members={members}
             onInvite={() => setInviteOpen(true)}
             onOpenProfile={openProfile}
+            onDeleteFamily={() => {
+              deleteFamily();
+              setScreen("onboarding");
+            }}
           />
         )}
         {session && screen === "profile" && (
           <Profile
             session={session}
             storyCount={stories.length}
-            bookPageCount={activeBook.storyIds.length}
+            bookPageCount={activeBook.items.length}
             onOpenStories={() => setScreen("stories")}
             onOpenBooks={() => setScreen("book")}
             onBack={() => setScreen(returnScreen === "profile" ? "home" : returnScreen)}
@@ -209,7 +233,7 @@ export function App() {
         {screen === "story-detail" && activeStory && (
           <StoryDetail
             story={activeStory}
-            inBook={activeBook.storyIds.includes(activeStory.id)}
+            inBook={activeBook.items.some((item) => item.type === "story" && item.storyId === activeStory.id)}
             bookTitle={activeBook.title}
             onBack={() => setScreen(returnScreen)}
             onToggleBook={toggleBook}
@@ -228,9 +252,11 @@ export function App() {
         {screen === "preview" && (
           <BookPreview
             stories={allBookStories}
-            selectedIds={activeBook.storyIds}
+            items={activeBook.items}
             bookTitle={activeBook.title}
             cover={activeBook.cover}
+            coverSubtitle={activeBook.coverSubtitle}
+            coverDesign={activeBook.coverDesign}
             onBack={() => setScreen("book")}
             onOrder={() => setScreen("order")}
           />
@@ -239,15 +265,16 @@ export function App() {
           <Order
             bookTitle={activeBook.title}
             cover={activeBook.cover}
-            pageCount={activeBook.storyIds.length}
+            pageCount={activeBook.items.length}
             onBack={() => setScreen("preview")}
             onDownloadPdf={() =>
               downloadBookPdf({
                 bookTitle: activeBook.title,
                 cover: activeBook.cover,
-                stories: activeBook.storyIds
-                  .map((id) => allBookStories.find((story) => story.id === id))
-                  .filter((story): story is Story => Boolean(story)),
+                coverSubtitle: activeBook.coverSubtitle,
+                coverDesign: activeBook.coverDesign,
+                items: activeBook.items,
+                stories: allBookStories,
               })
             }
           />

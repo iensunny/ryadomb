@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { coverTitles } from "../constants/covers";
 import type { CoverKind } from "../domain/book";
 import { BackIcon } from "../icons";
+import type { PreparedPdf } from "../lib/bookPdf";
 
 type Copies = 1 | 3 | 5;
 
@@ -10,17 +11,17 @@ type Props = {
   cover: CoverKind;
   pageCount: number;
   onBack: () => void;
-  onDownloadPdf?: () => void | Promise<void>;
+  onDownloadPdf?: () => Promise<PreparedPdf>;
 };
 
 function pluralSpreads(count: number) {
   const mod10 = count % 10;
   const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${count} разворот`;
+  if (mod10 === 1 && mod100 !== 11) return `${count} материал`;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return `${count} разворота`;
+    return `${count} материала`;
   }
-  return `${count} разворотов`;
+  return `${count} материалов`;
 }
 
 export function Order({
@@ -35,13 +36,24 @@ export function Order({
   const [contact, setContact] = useState("");
   const [sent, setSent] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfMessage, setPdfMessage] = useState("");
+  const [preparedPdf, setPreparedPdf] = useState<Exclude<PreparedPdf, null> | null>(null);
   const canSubmit = Boolean(name.trim() && contact.trim());
+
+  useEffect(() => () => {
+    if (preparedPdf) URL.revokeObjectURL(preparedPdf.url);
+  }, [preparedPdf]);
 
   async function handleDownloadPdf() {
     if (!onDownloadPdf || pdfBusy) return;
     setPdfBusy(true);
+    setPdfMessage("");
     try {
-      await onDownloadPdf();
+      const result = await onDownloadPdf();
+      setPreparedPdf(result);
+      setPdfMessage(result ? "PDF готов. Откройте его, затем сохраните через меню просмотра." : "PDF отправлен в загрузки.");
+    } catch {
+      setPdfMessage("Не удалось подготовить PDF. Попробуйте ещё раз.");
     } finally {
       setPdfBusy(false);
     }
@@ -54,13 +66,14 @@ export function Order({
           <button className="back" onClick={onBack} aria-label="Назад">
             <BackIcon />
           </button>
-          <h1>Заявка отправлена</h1>
+          <h1>Демо-заявка сохранена</h1>
         </header>
         <div className="success-card">
           <p className="kicker">Печать книги</p>
-          <h2>Заявка отправлена</h2>
+          <h2>Так будет выглядеть подтверждение</h2>
           <p>
-            Мы свяжемся с вами, когда уточним возможность и стоимость печати.
+            Сейчас это прототип: данные никуда не отправлялись. После
+            подключения формы здесь появится настоящее подтверждение.
           </p>
         </div>
         {onDownloadPdf && (
@@ -69,12 +82,14 @@ export function Order({
             disabled={pdfBusy}
             onClick={() => void handleDownloadPdf()}
           >
-            {pdfBusy ? "Готовим PDF…" : "Скачать PDF книги"}
+            {pdfBusy ? "Готовим PDF…" : "Подготовить PDF книги"}
           </button>
         )}
         <button className="btn-primary" onClick={onBack}>
           Вернуться к книге
         </button>
+        {pdfMessage && <p className="pdf-status" role="status">{pdfMessage}</p>}
+        {preparedPdf && <a className="secondary-action" href={preparedPdf.url} target="_blank" rel="noreferrer">Открыть готовый PDF</a>}
       </section>
     );
   }
@@ -150,8 +165,20 @@ export function Order({
           disabled={pdfBusy}
           onClick={() => void handleDownloadPdf()}
         >
-          {pdfBusy ? "Готовим PDF…" : "Скачать PDF книги"}
+          {pdfBusy ? "Готовим PDF…" : preparedPdf ? "Подготовить PDF заново" : "Подготовить PDF книги"}
         </button>
+      )}
+      {pdfMessage && <p className="pdf-status" role="status">{pdfMessage}</p>}
+      {preparedPdf && (
+        <a
+          className="btn-primary pdf-download-link"
+          href={preparedPdf.url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => setPdfMessage("PDF открыт в новой вкладке.")}
+        >
+          Открыть готовый PDF
+        </a>
       )}
 
       <button
@@ -159,7 +186,7 @@ export function Order({
         disabled={!canSubmit}
         onClick={() => setSent(true)}
       >
-        Оставить заявку
+        Проверить демо-заявку
       </button>
     </section>
   );
