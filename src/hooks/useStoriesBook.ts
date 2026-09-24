@@ -8,6 +8,7 @@ import { buildAllBookStories } from "../lib/catalogStories";
 import { buildFamilyMembers } from "../lib/familyMembers";
 import { usingBridgeMock } from "../vk/bridge";
 import type { AppSession } from "../vk/session";
+import { readRemoteState, remoteStateEnabled, writeRemoteState } from "../lib/remoteState";
 
 export type StoryDraft = Omit<Story, "id" | "author" | "when">;
 
@@ -68,14 +69,42 @@ export function useStoriesBook(session: AppSession | null) {
     })),
   );
   const [book, setBook] = useState<Book>(readInitialBook);
+  const [remoteReady, setRemoteReady] = useState(!remoteStateEnabled());
 
   useEffect(() => {
-    window.localStorage.setItem(STORIES_KEY, JSON.stringify(stories));
+    try { window.localStorage.setItem(STORIES_KEY, JSON.stringify(stories)); } catch { /* S3 remains the primary storage. */ }
   }, [stories]);
 
   useEffect(() => {
-    window.localStorage.setItem(BOOK_KEY, JSON.stringify(book));
+    try { window.localStorage.setItem(BOOK_KEY, JSON.stringify(book)); } catch { /* S3 remains the primary storage. */ }
   }, [book]);
+
+  useEffect(() => {
+    if (!session || !remoteStateEnabled()) return;
+    let cancelled = false;
+    readRemoteState().then(async (state) => {
+      if (cancelled) return;
+      if (state) {
+        setStories(state.stories);
+        setBook(state.book);
+      } else {
+        await writeRemoteState({ stories, book });
+      }
+      if (!cancelled) setRemoteReady(true);
+    }).catch((error) => {
+      console.warn("Remote storage is unavailable; local data is preserved", error);
+      if (!cancelled) setRemoteReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !remoteReady || !remoteStateEnabled()) return;
+    const timer = window.setTimeout(() => {
+      void writeRemoteState({ stories, book }).catch((error) => console.warn("Remote state saving failed", error));
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [stories, book, session, remoteReady]);
 
   useEffect(() => {
     if (!session) return;
