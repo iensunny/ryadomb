@@ -32,6 +32,7 @@ export function PhotoEditorModal({ file, initial, onCancel, onApply }: Props) {
   const drag = useRef<{ point: Point; pan: Point } | null>(null);
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [aspect, setAspect] = useState<PhotoAspect>(initial?.aspect ?? "landscape");
   const [zoom, setZoom] = useState(initial?.zoom ?? 1);
   const [pan, setPan] = useState<Point>({ x: initial?.panX ?? 0, y: initial?.panY ?? 0 });
@@ -60,10 +61,14 @@ export function PhotoEditorModal({ file, initial, onCancel, onApply }: Props) {
     target.height = size.height;
     const context = target.getContext("2d");
     if (!context) return;
+    context.clearRect(0, 0, size.width, size.height);
 
-    const scale = Math.max(size.width / image.width, size.height / image.height) * zoom;
-    const width = image.width * scale;
-    const height = image.height * scale;
+    const sourceWidth = image.naturalWidth;
+    const sourceHeight = image.naturalHeight;
+    if (!sourceWidth || !sourceHeight) return;
+    const scale = Math.max(size.width / sourceWidth, size.height / sourceHeight) * zoom;
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
     const overflowX = Math.max(0, (width - size.width) / 2);
     const overflowY = Math.max(0, (height - size.height) / 2);
     context.drawImage(
@@ -117,22 +122,29 @@ export function PhotoEditorModal({ file, initial, onCancel, onApply }: Props) {
   useEffect(() => {
     let objectUrl = "";
     const load = async () => {
-      const url = initial?.sourceUrl || (file ? (objectUrl = URL.createObjectURL(file)) : "");
-      if (!url) return;
-      const image = new Image();
-      image.src = url;
-      await image.decode();
-      const bounded = document.createElement("canvas");
-      const scale = Math.min(1, 2560 / Math.max(image.naturalWidth, image.naturalHeight));
-      bounded.width = Math.round(image.naturalWidth * scale);
-      bounded.height = Math.round(image.naturalHeight * scale);
-      bounded.getContext("2d")?.drawImage(image, 0, 0, bounded.width, bounded.height);
-      sourceUrl.current = bounded.toDataURL("image/jpeg", 0.92);
-      const optimized = new Image();
-      optimized.src = sourceUrl.current;
-      await optimized.decode();
-      imageRef.current = optimized;
-      setReady(true);
+      try {
+        setLoadError("");
+        const url = initial?.sourceUrl || (file ? (objectUrl = URL.createObjectURL(file)) : "");
+        if (!url) return;
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        const bounded = document.createElement("canvas");
+        const scale = Math.min(1, 2560 / Math.max(image.naturalWidth, image.naturalHeight));
+        bounded.width = Math.round(image.naturalWidth * scale);
+        bounded.height = Math.round(image.naturalHeight * scale);
+        const context = bounded.getContext("2d");
+        if (!context || !bounded.width || !bounded.height) throw new Error("invalid image");
+        context.drawImage(image, 0, 0, bounded.width, bounded.height);
+        sourceUrl.current = bounded.toDataURL("image/jpeg", 0.92);
+        const optimized = new Image();
+        optimized.src = sourceUrl.current;
+        await optimized.decode();
+        imageRef.current = optimized;
+        setReady(true);
+      } catch {
+        setLoadError("Не удалось открыть фотографию. Выберите другой файл.");
+      }
     };
     void load();
     return () => {
@@ -199,16 +211,25 @@ export function PhotoEditorModal({ file, initial, onCancel, onApply }: Props) {
           <button type="button" disabled={!ready} onClick={apply}>Готово</button>
         </header>
 
-        <div className={`photo-editor-stage ${aspect}`}>
+        <div
+          className={`photo-editor-stage ${aspect}`}
+          style={{
+            aspectRatio: aspect === "portrait" ? "3 / 4" : "4 / 3",
+            width: aspect === "portrait" ? "min(76%, 420px)" : "100%",
+          }}
+        >
           <canvas
             ref={canvasRef}
+            width={sizes[aspect].width}
+            height={sizes[aspect].height}
+            style={{ aspectRatio: aspect === "portrait" ? "3 / 4" : "4 / 3" }}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
             onPointerUp={pointerEnd}
             onPointerCancel={pointerEnd}
             aria-label="Перемещайте фотографию одним пальцем, масштабируйте двумя"
           />
-          {!ready && <span>Открываем фотографию…</span>}
+          {!ready && <span>{loadError || "Открываем фотографию…"}</span>}
         </div>
 
         <div className="photo-aspect-control" role="group" aria-label="Формат фотографии">
