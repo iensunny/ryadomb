@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hasJoinFragment } from "../constants/fragments";
+import { hasJoinFragment, joinTokenFromFragment } from "../constants/fragments";
 import type { Screen } from "../constants/navigation";
 import { bridge, onVkFragment } from "../vk/bridge";
 import { bootSession, type AppSession } from "../vk/session";
@@ -9,6 +9,8 @@ type SetScreen = (screen: Screen) => void;
 
 export function useAppBootstrap(setScreen: SetScreen) {
   const [session, setSession] = useState<AppSession | null>(null);
+  const [joinToken, setJoinToken] = useState<string | null>(null);
+  const [joinSucceeded, setJoinSucceeded] = useState(false);
 
   useEffect(() => {
     const previewScreen = new URLSearchParams(window.location.search).get(
@@ -32,7 +34,14 @@ export function useAppBootstrap(setScreen: SetScreen) {
 
         const fragment = window.location.hash.replace(/^#/, "");
         if (hasJoinFragment(fragment)) {
+          setJoinToken(joinTokenFromFragment(fragment));
           setScreen("join");
+          return;
+        }
+        if (window.sessionStorage.getItem("family-join-success") === "1") {
+          window.sessionStorage.removeItem("family-join-success");
+          setJoinSucceeded(true);
+          setScreen("family");
           return;
         }
         return getOnboarded().then((onboarded) => {
@@ -46,7 +55,10 @@ export function useAppBootstrap(setScreen: SetScreen) {
 
   useEffect(() => {
     const applyFragment = (location: string) => {
-      if (hasJoinFragment(location)) setScreen("join");
+      if (hasJoinFragment(location)) {
+        setJoinToken(joinTokenFromFragment(location));
+        setScreen("join");
+      }
     };
 
     const offFragment = onVkFragment(applyFragment);
@@ -65,6 +77,7 @@ export function useAppBootstrap(setScreen: SetScreen) {
   }
 
   async function clearJoinFragment() {
+    setJoinToken(null);
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     try {
       await bridge.send("VKWebAppSetLocation", { location: "" });
@@ -87,6 +100,8 @@ export function useAppBootstrap(setScreen: SetScreen) {
 
   return {
     session,
+    joinToken,
+    joinSucceeded,
     finishOnboarding,
     completeJoin,
     cancelJoin,

@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import pg from "pg";
@@ -30,7 +30,7 @@ function cors(request, response) {
     response.setHeader("access-control-allow-origin", origin);
     response.setHeader("vary", "Origin");
   }
-  response.setHeader("access-control-allow-methods", "GET,PUT,OPTIONS");
+  response.setHeader("access-control-allow-methods", "GET,POST,PUT,OPTIONS");
   response.setHeader("access-control-allow-headers", "content-type,x-vk-launch-params");
 }
 
@@ -79,9 +79,15 @@ async function migrate() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS app_users (
       vk_user_id BIGINT PRIMARY KEY,
+      first_name TEXT NOT NULL DEFAULT '',
+      last_name TEXT NOT NULL DEFAULT '',
+      photo_url TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    ALTER TABLE app_users ADD COLUMN IF NOT EXISTS first_name TEXT NOT NULL DEFAULT '';
+    ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_name TEXT NOT NULL DEFAULT '';
+    ALTER TABLE app_users ADD COLUMN IF NOT EXISTS photo_url TEXT;
     CREATE TABLE IF NOT EXISTS families (
       id UUID PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',
@@ -94,6 +100,39 @@ async function migrate() {
       role TEXT NOT NULL DEFAULT 'owner',
       joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       PRIMARY KEY (family_id, vk_user_id)
+    );
+    CREATE TABLE IF NOT EXISTS family_invites (
+      token_hash TEXT PRIMARY KEY,
+      family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+      created_by BIGINT NOT NULL REFERENCES app_users(vk_user_id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id BIGSERIAL PRIMARY KEY,
+      vk_user_id BIGINT NOT NULL REFERENCES app_users(vk_user_id) ON DELETE CASCADE,
+      family_id UUID REFERENCES families(id) ON DELETE SET NULL,
+      session_id TEXT NOT NULL DEFAULT '',
+      event_name TEXT NOT NULL,
+      screen TEXT NOT NULL DEFAULT '',
+      properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS print_requests (
+      id UUID PRIMARY KEY,
+      family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+      vk_user_id BIGINT NOT NULL REFERENCES app_users(vk_user_id) ON DELETE CASCADE,
+      book_id TEXT NOT NULL,
+      book_title TEXT NOT NULL,
+      page_count INTEGER NOT NULL DEFAULT 0,
+      cover TEXT NOT NULL DEFAULT '',
+      copies INTEGER NOT NULL DEFAULT 1,
+      contact_name TEXT NOT NULL,
+      contact_value TEXT NOT NULL,
+      comment TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE TABLE IF NOT EXISTS stories (
       id TEXT NOT NULL,
@@ -121,7 +160,124 @@ async function migrate() {
     );
     CREATE INDEX IF NOT EXISTS stories_family_position_idx ON stories(family_id, position);
     CREATE INDEX IF NOT EXISTS book_items_position_idx ON book_items(family_id, book_id, position);
+    CREATE INDEX IF NOT EXISTS analytics_events_created_idx ON analytics_events(created_at);
+    CREATE INDEX IF NOT EXISTS analytics_events_name_created_idx ON analytics_events(event_name,created_at);
+    CREATE INDEX IF NOT EXISTS analytics_events_user_created_idx ON analytics_events(vk_user_id,created_at);
+    CREATE INDEX IF NOT EXISTS print_requests_created_idx ON print_requests(created_at);
   `);
+}
+
+const allowedEvents = new Set([
+  "app_open", "screen_view", "onboarding_completed", "story_created", "story_updated", "story_deleted",
+  "photo_added", "book_previewed", "book_pdf_started", "book_pdf_downloaded", "book_pdf_failed",
+  "book_cover_changed", "book_custom_page_added", "invite_copied", "invite_shared", "invite_opened",
+  "print_request_opened", "print_request_created", "performance_sample", "client_error",
+]);
+
+function safeProperties(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).slice(0, 30).map(([key, item]) => {
+    if (typeof item === "string") return [key.slice(0, 80), item.slice(0, 300)];
+    if (typeof item === "number" || typeof item === "boolean" || item === null) return [key.slice(0, 80), item];
+    return [key.slice(0, 80), String(item).slice(0, 300)];
+  }));
+}
+
+async function recordEvent(userId, payload) {
+  const eventName = typeof payload?.eventName === "string" ? payload.eventName : "";
+  if (!allowedEvents.has(eventName)) throw Object.assign(new Error("unknown analytics event"), { status: 400 });
+  const db = await pool.connect();
+  try {
+    await upsertUser(db, userId, payload?.profile);
+    const family = await familyFor(db, userId);
+    await db.query(
+      "INSERT INTO analytics_events(vk_user_id,family_id,session_id,event_name,screen,properties) VALUES($1,$2,$3,$4,$5,$6)",
+      [userId, family?.id || null, String(payload?.sessionId || "").slice(0, 100), eventName, String(payload?.screen || "").slice(0, 100), safeProperties(payload?.properties)],
+    );
+  } finally { db.release(); }
+}
+
+async function createPrintRequest(userId, payload) {
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    await upsertUser(db, userId, payload?.profile);
+    const family = await familyFor(db, userId, true);
+    const name = String(payload?.name || "").trim().slice(0, 160);
+    const contact = String(payload?.contact || "").trim().slice(0, 300);
+    if (!name || !contact) throw Object.assign(new Error("name and contact are required"), { status: 400 });
+    const id = randomUUID();
+    await db.query(
+      `INSERT INTO print_requests(id,family_id,vk_user_id,book_id,book_title,page_count,cover,copies,contact_name,contact_value,comment)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [id, family.id, userId, String(payload?.bookId || "family-book").slice(0, 160), String(payload?.bookTitle || "Семейная книга").slice(0, 300), Math.max(0, Number(payload?.pageCount) || 0), String(payload?.cover || "").slice(0, 80), Math.max(1, Math.min(100, Number(payload?.copies) || 1)), name, contact, String(payload?.comment || "").slice(0, 2000)],
+    );
+    await db.query("COMMIT");
+    return { id, status: "new" };
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally { db.release(); }
+}
+
+async function publicStatistics() {
+  const [summary, daily, events, screens, transitions, errors, retention, categories, covers, requestStatuses, platforms] = await Promise.all([
+    pool.query(`SELECT
+      (SELECT count(*) FROM app_users) unique_users,
+      (SELECT count(*) FROM families) families,
+      (SELECT count(*) FROM family_members WHERE role='member') invited_members,
+      (SELECT count(*) FROM family_invites) invites_created,
+      (SELECT count(*) FROM stories) stories,
+      (SELECT count(*) FROM books) books,
+      (SELECT count(*) FROM analytics_events WHERE event_name='book_pdf_downloaded') pdf_downloads,
+      (SELECT count(*) FROM print_requests) print_requests,
+      (SELECT round(avg(value),1) FROM (SELECT count(*) value FROM family_members GROUP BY family_id) x) avg_members_per_family,
+      (SELECT round(avg(value),1) FROM (SELECT count(*) value FROM stories GROUP BY family_id) x) avg_stories_per_family,
+      (SELECT round(avg(value),1) FROM (SELECT count(*) value FROM book_items GROUP BY family_id,book_id) x) avg_pages_per_book,
+      (SELECT count(DISTINCT vk_user_id) FROM analytics_events WHERE created_at>=now()-interval '1 day') dau,
+      (SELECT count(DISTINCT vk_user_id) FROM analytics_events WHERE created_at>=now()-interval '7 days') wau,
+      (SELECT count(DISTINCT vk_user_id) FROM analytics_events WHERE created_at>=now()-interval '30 days') mau,
+      (SELECT round(avg((properties->>'loadMs')::numeric)) FROM analytics_events WHERE event_name='performance_sample' AND properties ? 'loadMs') avg_load_ms`),
+    pool.query(`WITH days AS (SELECT generate_series(current_date-29,current_date,'1 day')::date day)
+      SELECT d.day,count(DISTINCT e.vk_user_id) users,count(e.id) events
+      FROM days d LEFT JOIN analytics_events e ON e.created_at>=d.day AND e.created_at<d.day+interval '1 day'
+      GROUP BY d.day ORDER BY d.day`),
+    pool.query("SELECT event_name,count(*) value,count(DISTINCT vk_user_id) users FROM analytics_events GROUP BY event_name ORDER BY value DESC"),
+    pool.query("SELECT screen,count(*) views,count(DISTINCT vk_user_id) users FROM analytics_events WHERE event_name='screen_view' AND screen<>'' GROUP BY screen ORDER BY views DESC"),
+    pool.query(`WITH ordered AS (SELECT session_id,screen,lag(screen) OVER(PARTITION BY session_id ORDER BY created_at,id) previous FROM analytics_events WHERE event_name='screen_view' AND session_id<>'')
+      SELECT previous source,screen target,count(*) value FROM ordered WHERE previous IS NOT NULL AND previous<>screen GROUP BY previous,screen ORDER BY value DESC LIMIT 30`),
+    pool.query("SELECT COALESCE(properties->>'kind','unknown') kind,count(*) value FROM analytics_events WHERE event_name IN ('client_error','book_pdf_failed') GROUP BY kind ORDER BY value DESC LIMIT 20"),
+    pool.query(`WITH first_seen AS (SELECT vk_user_id,min(created_at)::date first_day FROM analytics_events GROUP BY vk_user_id)
+      SELECT count(*) users,
+        count(*) FILTER (WHERE EXISTS(SELECT 1 FROM analytics_events e WHERE e.vk_user_id=f.vk_user_id AND e.created_at::date>=f.first_day+1)) d1,
+        count(*) FILTER (WHERE EXISTS(SELECT 1 FROM analytics_events e WHERE e.vk_user_id=f.vk_user_id AND e.created_at::date>=f.first_day+7)) d7,
+        count(*) FILTER (WHERE EXISTS(SELECT 1 FROM analytics_events e WHERE e.vk_user_id=f.vk_user_id AND e.created_at::date>=f.first_day+30)) d30
+      FROM first_seen f`),
+    pool.query("SELECT c.category,count(*) value FROM stories CROSS JOIN LATERAL jsonb_array_elements_text(COALESCE(data->'categories','[]'::jsonb)) AS c(category) GROUP BY c.category ORDER BY value DESC"),
+    pool.query("SELECT COALESCE(data->>'cover','unknown') cover,count(*) value FROM books GROUP BY cover ORDER BY value DESC"),
+    pool.query("SELECT status,count(*) value FROM print_requests GROUP BY status ORDER BY value DESC"),
+    pool.query("SELECT COALESCE(properties->>'platform','unknown') platform,count(*) value FROM analytics_events WHERE event_name='app_open' GROUP BY platform ORDER BY value DESC"),
+  ]);
+  const normalize = (rows) => rows.map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value])));
+  const resultSummary = normalize(summary.rows)[0];
+  resultSummary.invite_conversion = resultSummary.invites_created ? Math.round(resultSummary.invited_members / resultSummary.invites_created * 1000) / 10 : 0;
+  resultSummary.pdf_conversion = Number(resultSummary.books) ? Math.round(Number(resultSummary.pdf_downloads) / Number(resultSummary.books) * 1000) / 10 : 0;
+  return { generatedAt: new Date().toISOString(), summary: resultSummary, daily: normalize(daily.rows), events: normalize(events.rows), screens: normalize(screens.rows), transitions: normalize(transitions.rows), errors: normalize(errors.rows), retention: normalize(retention.rows)[0], categories: normalize(categories.rows), covers: normalize(covers.rows), requestStatuses: normalize(requestStatuses.rows), platforms: normalize(platforms.rows) };
+}
+
+async function upsertUser(db, userId, profile = {}) {
+  const firstName = typeof profile.firstName === "string" ? profile.firstName.trim().slice(0, 100) : "";
+  const lastName = typeof profile.lastName === "string" ? profile.lastName.trim().slice(0, 100) : "";
+  const photoUrl = typeof profile.photoUrl === "string" ? profile.photoUrl.slice(0, 1000) : null;
+  await db.query(
+    `INSERT INTO app_users(vk_user_id,first_name,last_name,photo_url)
+     VALUES($1,$2,$3,$4)
+     ON CONFLICT(vk_user_id) DO UPDATE SET
+       first_name=CASE WHEN excluded.first_name='' THEN app_users.first_name ELSE excluded.first_name END,
+       last_name=CASE WHEN excluded.last_name='' THEN app_users.last_name ELSE excluded.last_name END,
+       photo_url=COALESCE(excluded.photo_url,app_users.photo_url),updated_at=now()`,
+    [userId, firstName, lastName, photoUrl],
+  );
 }
 
 async function familyFor(client, userId, create = false) {
@@ -131,10 +287,91 @@ async function familyFor(client, userId, create = false) {
   );
   if (found.rows[0] || !create) return found.rows[0] || null;
   const id = randomUUID();
-  await client.query("INSERT INTO app_users(vk_user_id) VALUES($1) ON CONFLICT(vk_user_id) DO UPDATE SET updated_at=now()", [userId]);
+  await upsertUser(client, userId);
   await client.query("INSERT INTO families(id) VALUES($1)", [id]);
   await client.query("INSERT INTO family_members(family_id,vk_user_id,role) VALUES($1,$2,'owner')", [id, userId]);
   return { id, name: "" };
+}
+
+async function readFamily(userId) {
+  const db = await pool.connect();
+  try {
+    const family = await familyFor(db, userId);
+    if (!family) return null;
+    const members = await db.query(
+      `SELECT u.vk_user_id,u.first_name,u.last_name,u.photo_url,m.role,m.joined_at
+       FROM family_members m JOIN app_users u ON u.vk_user_id=m.vk_user_id
+       WHERE m.family_id=$1 ORDER BY CASE WHEN m.role='owner' THEN 0 ELSE 1 END,m.joined_at`,
+      [family.id],
+    );
+    return { id: family.id, name: family.name, members: members.rows };
+  } finally { db.release(); }
+}
+
+function tokenHash(token) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+async function createInvite(userId, payload) {
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    await upsertUser(db, userId, payload?.profile);
+    const family = await familyFor(db, userId, true);
+    const name = typeof payload?.familyName === "string" ? payload.familyName.trim().slice(0, 160) : "";
+    if (name) await db.query("UPDATE families SET name=$2,updated_at=now() WHERE id=$1", [family.id, name]);
+    const token = randomBytes(24).toString("base64url");
+    await db.query(
+      "INSERT INTO family_invites(token_hash,family_id,created_by,expires_at) VALUES($1,$2,$3,now()+interval '30 days')",
+      [tokenHash(token), family.id, userId],
+    );
+    await db.query("INSERT INTO analytics_events(vk_user_id,family_id,event_name,properties) VALUES($1,$2,'invite_created',$3)", [userId, family.id, { expiresInDays: 30 }]);
+    await db.query("COMMIT");
+    return { token, expiresInDays: 30 };
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally { db.release(); }
+}
+
+async function joinFamily(userId, payload) {
+  const token = typeof payload?.token === "string" ? payload.token.trim() : "";
+  if (!token) throw Object.assign(new Error("missing invite token"), { status: 400, code: "INVALID_INVITE" });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const inviteResult = await db.query(
+      `SELECT i.family_id,f.name FROM family_invites i JOIN families f ON f.id=i.family_id
+       WHERE i.token_hash=$1 AND i.expires_at>now() FOR UPDATE`,
+      [tokenHash(token)],
+    );
+    const invite = inviteResult.rows[0];
+    if (!invite) throw Object.assign(new Error("invite is invalid or expired"), { status: 404, code: "INVALID_INVITE" });
+    await upsertUser(db, userId, payload?.profile);
+    const existing = await db.query("SELECT family_id,role FROM family_members WHERE vk_user_id=$1 ORDER BY joined_at", [userId]);
+    if (!existing.rows.some((row) => row.family_id === invite.family_id)) {
+      for (const membership of existing.rows) {
+        const counts = await db.query(
+          `SELECT
+             (SELECT count(*) FROM family_members WHERE family_id=$1) members,
+             (SELECT count(*) FROM stories WHERE family_id=$1 AND id NOT LIKE 'demo-%') user_stories,
+             (SELECT name FROM families WHERE id=$1) family_name`,
+          [membership.family_id],
+        );
+        const row = counts.rows[0];
+        const disposable = membership.role === "owner" && Number(row.members) === 1 && Number(row.user_stories) === 0 && !row.family_name;
+        if (!disposable) throw Object.assign(new Error("user already belongs to another family"), { status: 409, code: "ALREADY_IN_FAMILY" });
+        await db.query("DELETE FROM families WHERE id=$1", [membership.family_id]);
+      }
+      await db.query("INSERT INTO family_members(family_id,vk_user_id,role) VALUES($1,$2,'member')", [invite.family_id, userId]);
+      await db.query("INSERT INTO analytics_events(vk_user_id,family_id,event_name,properties) VALUES($1,$2,'invite_joined',$3)", [userId, invite.family_id, {}]);
+    }
+    await db.query("COMMIT");
+    return { familyId: invite.family_id, familyName: invite.name, joined: true };
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally { db.release(); }
 }
 
 async function readState(userId) {
@@ -231,11 +468,32 @@ createServer(async (request, response) => {
   if (request.method === "OPTIONS") return response.writeHead(204).end();
   const url = new URL(request.url, "http://api.local");
   if (url.pathname === "/health") return send(response, missing.length ? 503 : 200, { ok: missing.length === 0, missing });
-  if (url.pathname !== "/api/state") return send(response, 404, { error: "not found" });
+  if (url.pathname === "/api/statistics" && request.method === "GET") {
+    if (missing.length) return send(response, 503, { error: "server is not configured" });
+    try { return send(response, 200, await publicStatistics()); }
+    catch (error) { console.error(error); return send(response, 500, { error: "statistics unavailable" }); }
+  }
   if (missing.length) return send(response, 503, { error: "server is not configured" });
   const userId = verifyLaunchParams(request.headers["x-vk-launch-params"]);
   if (!userId) return send(response, 401, { error: "invalid VK launch parameters" });
   try {
+    if (url.pathname === "/api/family" && request.method === "GET") {
+      return send(response, 200, { family: await readFamily(userId) });
+    }
+    if (url.pathname === "/api/family/invite" && request.method === "POST") {
+      return send(response, 201, await createInvite(userId, await body(request)));
+    }
+    if (url.pathname === "/api/family/join" && request.method === "POST") {
+      return send(response, 200, await joinFamily(userId, await body(request)));
+    }
+    if (url.pathname === "/api/analytics/events" && request.method === "POST") {
+      await recordEvent(userId, await body(request));
+      return send(response, 202, { ok: true });
+    }
+    if (url.pathname === "/api/print-requests" && request.method === "POST") {
+      return send(response, 201, await createPrintRequest(userId, await body(request)));
+    }
+    if (url.pathname !== "/api/state") return send(response, 404, { error: "not found" });
     if (request.method === "GET") {
       const state = await readState(userId);
       return send(response, 200, { state: state ? await loadMedia(state) : null });
@@ -248,7 +506,10 @@ createServer(async (request, response) => {
     return send(response, 405, { error: "method not allowed" });
   } catch (error) {
     console.error(error);
-    return send(response, error.status || 500, { error: "storage operation failed" });
+    return send(response, error.status || 500, {
+      error: error.code ? error.message : "storage operation failed",
+      ...(error.code ? { code: error.code } : {}),
+    });
   }
 }).listen(Number(process.env.PORT) || 8080, "0.0.0.0", async () => {
   try {

@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { Statistics } from "./screens/Statistics";
 import { startVkBridge } from "./vk/bridge";
 import "@fontsource/inter/cyrillic-400.css";
 import "@fontsource/inter/cyrillic-500.css";
@@ -11,12 +12,16 @@ import "@fontsource/lora/cyrillic-600.css";
 import "@fontsource/marck-script/cyrillic-400.css";
 import "./styles.css";
 
-startVkBridge().catch((error) => {
-  console.warn("VKWebAppInit failed", error);
-});
+const statisticsPage = window.location.pathname.replace(/\/$/, "") === "/statistics";
+
+if (!statisticsPage) {
+  startVkBridge().catch((error) => {
+    console.warn("VKWebAppInit failed", error);
+  });
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {statisticsPage ? <Statistics /> : <App />}
   </StrictMode>,
 );

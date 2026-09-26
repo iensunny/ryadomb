@@ -6,6 +6,7 @@ import { familyMembers } from "../fixtures/family";
 import { seedStories } from "../fixtures/stories";
 import { buildAllBookStories } from "../lib/catalogStories";
 import { buildFamilyMembers } from "../lib/familyMembers";
+import { familyApiEnabled, readFamily } from "../lib/familyApi";
 import { usingBridgeMock } from "../vk/bridge";
 import type { AppSession } from "../vk/session";
 import { readRemoteState, remoteStateEnabled, writeRemoteState } from "../lib/remoteState";
@@ -61,7 +62,7 @@ function readInitialBook(): Book {
   };
 }
 
-export function useStoriesBook(session: AppSession | null) {
+export function useStoriesBook(session: AppSession | null, pauseRemote = false) {
   const [stories, setStories] = useState<Story[]>(() =>
     readInitialStories().map((story) => ({
       ...story,
@@ -70,6 +71,7 @@ export function useStoriesBook(session: AppSession | null) {
   );
   const [book, setBook] = useState<Book>(readInitialBook);
   const [remoteReady, setRemoteReady] = useState(!remoteStateEnabled());
+  const [remoteFamily, setRemoteFamily] = useState<{ name: string; members: ReturnType<typeof buildFamilyMembers> } | null>(null);
 
   useEffect(() => {
     try { window.localStorage.setItem(STORIES_KEY, JSON.stringify(stories)); } catch { /* S3 remains the primary storage. */ }
@@ -80,7 +82,7 @@ export function useStoriesBook(session: AppSession | null) {
   }, [book]);
 
   useEffect(() => {
-    if (!session || !remoteStateEnabled()) return;
+    if (!session || pauseRemote || !remoteStateEnabled()) return;
     let cancelled = false;
     readRemoteState().then(async (state) => {
       if (cancelled) return;
@@ -96,15 +98,33 @@ export function useStoriesBook(session: AppSession | null) {
       if (!cancelled) setRemoteReady(true);
     });
     return () => { cancelled = true; };
-  }, [session]);
+  }, [session, pauseRemote]);
 
   useEffect(() => {
-    if (!session || !remoteReady || !remoteStateEnabled()) return;
+    if (!session || pauseRemote || !familyApiEnabled()) return;
+    let cancelled = false;
+    const refresh = () => {
+      void readFamily(session.user.id).then((family) => {
+        if (!cancelled) setRemoteFamily(family);
+      }).catch((error) => console.warn("Family members loading failed", error));
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    const timer = window.setInterval(refresh, 15000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(timer);
+    };
+  }, [session, pauseRemote]);
+
+  useEffect(() => {
+    if (!session || pauseRemote || !remoteReady || !remoteStateEnabled()) return;
     const timer = window.setTimeout(() => {
       void writeRemoteState({ stories, book }).catch((error) => console.warn("Remote state saving failed", error));
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [stories, book, session, remoteReady]);
+  }, [stories, book, session, remoteReady, pauseRemote]);
 
   useEffect(() => {
     if (!session) return;
@@ -117,10 +137,7 @@ export function useStoriesBook(session: AppSession | null) {
     );
   }, [session]);
 
-  const members = useMemo(
-    () => buildFamilyMembers(session?.user, familyMembers, usingBridgeMock),
-    [session],
-  );
+  const members = useMemo(() => remoteFamily?.members ?? buildFamilyMembers(session?.user, familyMembers, usingBridgeMock), [remoteFamily, session]);
 
   const allBookStories = useMemo(() => buildAllBookStories(stories), [stories]);
 
@@ -213,6 +230,7 @@ export function useStoriesBook(session: AppSession | null) {
     stories,
     book,
     members,
+    remoteFamilyName: remoteFamily?.name || "",
     allBookStories,
     toggleBook,
     updateActiveBook,

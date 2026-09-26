@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { navItems } from "./constants/navigation";
 import type { CoverKind } from "./domain/book";
 import { useAppBootstrap } from "./hooks/useAppBootstrap";
@@ -21,6 +21,8 @@ import { StoryDetail } from "./screens/StoryDetail";
 import { downloadBookPdf } from "./lib/bookPdf";
 import { usingBridgeMock } from "./vk/bridge";
 import { familyTitle, fullName } from "./vk/session";
+import { joinRemoteFamily } from "./lib/familyApi";
+import { trackEvent } from "./lib/analytics";
 
 export function App() {
   const {
@@ -39,13 +41,14 @@ export function App() {
     openProfile,
     openStory,
   } = useAppNavigation();
-  const { session, finishOnboarding, completeJoin, cancelJoin } =
+  const { session, joinToken, joinSucceeded, finishOnboarding, completeJoin, cancelJoin } =
     useAppBootstrap(setScreen);
   const desktop = useVkLayout(session);
   const {
     stories,
     book: activeBook,
     members,
+    remoteFamilyName,
     allBookStories,
     toggleBook,
     updateActiveBook,
@@ -57,10 +60,10 @@ export function App() {
     updateBookPage,
     removeBookPage,
     deleteFamily,
-  } = useStoriesBook(session);
+  } = useStoriesBook(session, screen === "join");
 
   const familyName = session
-    ? familyTitle(session.user)
+    ? remoteFamilyName || familyTitle(session.user)
     : usingBridgeMock
       ? "Семья Ивановых"
       : "Ваша семья";
@@ -70,6 +73,21 @@ export function App() {
       allBookStories.find((story) => story.id === activeStoryId) ?? stories[0],
     [activeStoryId, allBookStories, stories],
   );
+
+  useEffect(() => {
+    if (!session) return;
+    trackEvent("screen_view", { screen, user: session.user });
+    if (screen === "join") trackEvent("invite_opened", { screen, user: session.user });
+    if (screen === "order") trackEvent("print_request_opened", { screen, properties: { pageCount: activeBook.items.length }, user: session.user });
+  }, [screen, session]);
+
+  useEffect(() => {
+    if (session) {
+      trackEvent("app_open", { screen, properties: { platform: session.launch.platform || "unknown" }, user: session.user });
+      const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+      trackEvent("performance_sample", { screen, properties: { loadMs: Math.round(navigation?.duration || performance.now()) }, user: session.user });
+    }
+  }, [session]);
 
   const nav = (
     <>
@@ -131,16 +149,22 @@ export function App() {
                 ? 1
                 : 0
             }
-            onDone={finishOnboarding}
+            onDone={() => {
+              if (session) trackEvent("onboarding_completed", { screen: "onboarding", user: session.user });
+              finishOnboarding();
+            }}
           />
         )}
         {screen === "join" && session && (
           <JoinFamily
-            familyName={familyName}
             userName={fullName(session.user)}
             photoUrl={session.user.photoUrl}
-            onJoin={() => {
-              void completeJoin();
+            onJoin={async () => {
+              if (!joinToken) throw Object.assign(new Error("missing invite token"), { code: "INVALID_INVITE" });
+              await joinRemoteFamily(joinToken, session.user);
+              await completeJoin();
+              window.sessionStorage.setItem("family-join-success", "1");
+              window.location.reload();
             }}
             onCancel={() => {
               void cancelJoin();
@@ -177,13 +201,22 @@ export function App() {
             onRenameBook={(title) => updateActiveBook({ title })}
             onToggleStory={toggleBook}
             onReorderItems={reorderBookItems}
-            onCoverChange={(cover: CoverKind) => setCover(cover)}
+            onCoverChange={(cover: CoverKind) => {
+              setCover(cover);
+              if (session) trackEvent("book_cover_changed", { screen: "book", properties: { cover }, user: session.user });
+            }}
             onCoverSubtitleChange={(coverSubtitle) => updateActiveBook({ coverSubtitle })}
             onCoverDesignChange={(coverDesign) => updateActiveBook({ coverDesign })}
-            onAddPage={addBookPage}
+            onAddPage={() => {
+              addBookPage();
+              if (session) trackEvent("book_custom_page_added", { screen: "book", user: session.user });
+            }}
             onUpdatePage={updateBookPage}
             onRemovePage={removeBookPage}
-            onPreview={() => setScreen("preview")}
+            onPreview={() => {
+              if (session) trackEvent("book_previewed", { screen: "book", properties: { pageCount: activeBook.items.length }, user: session.user });
+              setScreen("preview");
+            }}
           />
         )}
         {session && screen === "family" && (
@@ -197,6 +230,7 @@ export function App() {
               deleteFamily();
               setScreen("onboarding");
             }}
+            joinedRecently={joinSucceeded}
           />
         )}
         {session && screen === "profile" && (
@@ -226,6 +260,8 @@ export function App() {
               setActiveStoryId(savedId);
               setEditingStoryId(null);
               if (!editingStoryId) setReturnScreen("home");
+              trackEvent(editingStoryId ? "story_updated" : "story_created", { screen: "new-story", properties: { categories: (draft.categories || []).join(","), hasPhoto: Boolean(draft.photoUrl || Object.keys(draft.photos || {}).length) }, user: session.user });
+              if (draft.photoUrl || Object.keys(draft.photos || {}).length) trackEvent("photo_added", { screen: "new-story", user: session.user });
               setScreen("story-detail");
             }}
           />
@@ -243,6 +279,7 @@ export function App() {
             }}
             onDelete={(storyId) => {
               deleteStory(storyId);
+              if (session) trackEvent("story_deleted", { screen: "story-detail", user: session.user });
               if (editingStoryId === storyId) setEditingStoryId(null);
               setActiveStoryId("");
               setScreen(returnScreen);
@@ -263,9 +300,11 @@ export function App() {
         )}
         {session && screen === "order" && (
           <Order
+            bookId={activeBook.id}
             bookTitle={activeBook.title}
             cover={activeBook.cover}
             pageCount={activeBook.items.length}
+            user={session.user}
             onBack={() => setScreen("preview")}
             onDownloadPdf={() =>
               downloadBookPdf({
@@ -288,6 +327,7 @@ export function App() {
           <InviteModal
             familyName={familyName}
             appId={session.launch.appId}
+            user={session.user}
             onClose={() => setInviteOpen(false)}
           />
         )}

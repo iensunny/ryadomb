@@ -3,13 +3,18 @@ import { coverTitles } from "../constants/covers";
 import type { CoverKind } from "../domain/book";
 import { BackIcon } from "../icons";
 import type { PreparedPdf } from "../lib/bookPdf";
+import { createPrintRequest } from "../lib/printRequests";
+import { trackEvent } from "../lib/analytics";
+import type { VkUserProfile } from "../vk/session";
 
 type Copies = 1 | 3 | 5;
 
 type Props = {
   bookTitle: string;
+  bookId: string;
   cover: CoverKind;
   pageCount: number;
+  user: VkUserProfile;
   onBack: () => void;
   onDownloadPdf?: () => Promise<PreparedPdf>;
 };
@@ -26,8 +31,10 @@ function pluralSpreads(count: number) {
 
 export function Order({
   bookTitle,
+  bookId,
   cover,
   pageCount,
+  user,
   onBack,
   onDownloadPdf,
 }: Props) {
@@ -35,6 +42,9 @@ export function Order({
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [sent, setSent] = useState(false);
+  const [requestId, setRequestId] = useState("");
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfMessage, setPdfMessage] = useState("");
   const [preparedPdf, setPreparedPdf] = useState<Exclude<PreparedPdf, null> | null>(null);
@@ -49,13 +59,33 @@ export function Order({
     setPdfBusy(true);
     setPdfMessage("");
     try {
+      trackEvent("book_pdf_started", { screen: "order", properties: { pageCount }, user });
       const result = await onDownloadPdf();
       setPreparedPdf(result);
       setPdfMessage(result ? "PDF готов. Откройте его, затем сохраните через меню просмотра." : "PDF отправлен в загрузки.");
+      trackEvent("book_pdf_downloaded", { screen: "order", properties: { pageCount }, user });
     } catch {
       setPdfMessage("Не удалось подготовить PDF. Попробуйте ещё раз.");
+      trackEvent("book_pdf_failed", { screen: "order", properties: { kind: "pdf_generation" }, user });
     } finally {
       setPdfBusy(false);
+    }
+  }
+
+  async function submitRequest() {
+    if (!canSubmit || submitBusy) return;
+    setSubmitBusy(true);
+    setSubmitError("");
+    try {
+      const result = await createPrintRequest({ bookId, bookTitle, pageCount, cover, copies, name, contact, user });
+      setRequestId(result.id || "");
+      setSent(true);
+      trackEvent("print_request_created", { screen: "order", properties: { copies, pageCount, cover }, user });
+    } catch {
+      setSubmitError("Не удалось отправить заявку. Проверьте соединение и попробуйте ещё раз.");
+      trackEvent("client_error", { screen: "order", properties: { kind: "print_request" }, user });
+    } finally {
+      setSubmitBusy(false);
     }
   }
 
@@ -66,15 +96,16 @@ export function Order({
           <button className="back" onClick={onBack} aria-label="Назад">
             <BackIcon />
           </button>
-          <h1>Демо-заявка сохранена</h1>
+          <h1>Заявка отправлена</h1>
         </header>
         <div className="success-card">
           <p className="kicker">Печать книги</p>
-          <h2>Так будет выглядеть подтверждение</h2>
+          <h2>Спасибо! Мы получили вашу заявку</h2>
           <p>
-            Сейчас это прототип: данные никуда не отправлялись. После
-            подключения формы здесь появится настоящее подтверждение.
+            Мы свяжемся с вами по указанному контакту, уточним параметры книги,
+            стоимость печати и доставки.
           </p>
+          {requestId && <p className="request-number">Номер заявки: <strong>{requestId.slice(0, 8).toUpperCase()}</strong></p>}
         </div>
         {onDownloadPdf && (
           <button
@@ -158,6 +189,7 @@ export function Order({
         <strong>Стоимость уточним после заявки</strong>
         <p>Зависит от параметров печати и доставки.</p>
       </div>
+      {submitError && <p className="form-error" role="alert">{submitError}</p>}
 
       {onDownloadPdf && (
         <button
@@ -183,10 +215,10 @@ export function Order({
 
       <button
         className="btn-primary"
-        disabled={!canSubmit}
-        onClick={() => setSent(true)}
+        disabled={!canSubmit || submitBusy}
+        onClick={() => void submitRequest()}
       >
-        Проверить демо-заявку
+        {submitBusy ? "Отправляем заявку…" : "Отправить заявку на печать"}
       </button>
     </section>
   );

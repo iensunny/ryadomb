@@ -714,6 +714,19 @@
   margin-bottom: 8px;
 }
 
+.family-join-success {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(104, 134, 104, 0.28);
+  border-radius: 18px;
+  background: rgba(104, 134, 104, 0.12);
+  padding: 14px 16px;
+  color: var(--ink);
+}
+
+.family-join-success span { color: var(--muted); font-size: 13px; line-height: 1.4; }
+
 .family-danger-zone {
   margin: 28px 0 18px;
   border: 1px solid color-mix(in srgb, #a43f35 28%, transparent);

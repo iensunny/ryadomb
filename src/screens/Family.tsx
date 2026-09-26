@@ -10,6 +10,7 @@ type Props = {
   onInvite: () => void;
   onOpenProfile: () => void;
   onDeleteFamily: () => void;
+  joinedRecently?: boolean;
 };
 
 export function Family({
@@ -19,6 +20,7 @@ export function Family({
   onInvite,
   onOpenProfile,
   onDeleteFamily,
+  joinedRecently,
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
@@ -32,6 +34,13 @@ export function Family({
           добавляют тексты и фотографии в общую семейную книгу.
         </p>
       </header>
+
+      {joinedRecently && (
+        <div className="family-join-success" role="status">
+          <strong>Вы присоединились к семье</strong>
+          <span>Теперь участники и общая семейная книга доступны вам.</span>
+        </div>
+      )}
 
       <button className="family-profile-link" onClick={onOpenProfile}>
         <Avatar person={user} className="avatar avatar-sm" />
