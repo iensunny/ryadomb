@@ -238,10 +238,10 @@ async function publicStatistics() {
       (SELECT count(DISTINCT vk_user_id) FROM analytics_events WHERE created_at>=now()-interval '7 days') wau,
       (SELECT count(DISTINCT vk_user_id) FROM analytics_events WHERE created_at>=now()-interval '30 days') mau,
       (SELECT round(avg((properties->>'loadMs')::numeric)) FROM analytics_events WHERE event_name='performance_sample' AND properties ? 'loadMs') avg_load_ms`),
-    pool.query(`WITH days AS (SELECT generate_series(current_date-29,current_date,'1 day')::date day)
-      SELECT d.day,count(DISTINCT e.vk_user_id) users,count(e.id) events
-      FROM days d LEFT JOIN analytics_events e ON e.created_at>=d.day AND e.created_at<d.day+interval '1 day'
-      GROUP BY d.day ORDER BY d.day`),
+    pool.query(`WITH days AS (SELECT generate_series(current_date-29,current_date,interval '1 day')::date AS event_date)
+      SELECT d.event_date AS day,count(DISTINCT e.vk_user_id) users,count(e.id) events
+      FROM days d LEFT JOIN analytics_events e ON e.created_at>=d.event_date AND e.created_at<d.event_date+interval '1 day'
+      GROUP BY d.event_date ORDER BY d.event_date`),
     pool.query("SELECT event_name,count(*) value,count(DISTINCT vk_user_id) users FROM analytics_events GROUP BY event_name ORDER BY value DESC"),
     pool.query("SELECT screen,count(*) views,count(DISTINCT vk_user_id) users FROM analytics_events WHERE event_name='screen_view' AND screen<>'' GROUP BY screen ORDER BY views DESC"),
     pool.query(`WITH ordered AS (SELECT session_id,screen,lag(screen) OVER(PARTITION BY session_id ORDER BY created_at,id) previous FROM analytics_events WHERE event_name='screen_view' AND session_id<>'')
