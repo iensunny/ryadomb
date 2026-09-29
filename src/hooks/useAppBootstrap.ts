@@ -3,7 +3,9 @@ import { hasJoinFragment, joinTokenFromFragment } from "../constants/fragments";
 import type { Screen } from "../constants/navigation";
 import { bridge, onVkFragment } from "../vk/bridge";
 import { bootSession, type AppSession } from "../vk/session";
-import { getOnboarded, setOnboarded } from "../vk/storage";
+import { getOnboarded, getPrivacyConsent, setOnboarded, setPrivacyConsent } from "../vk/storage";
+import { PRIVACY_POLICY_VERSION } from "../constants/privacy";
+import { recordPrivacyConsent } from "../lib/privacyConsent";
 
 type SetScreen = (screen: Screen) => void;
 
@@ -11,6 +13,7 @@ export function useAppBootstrap(setScreen: SetScreen) {
   const [session, setSession] = useState<AppSession | null>(null);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joinSucceeded, setJoinSucceeded] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   useEffect(() => {
     const previewScreen = new URLSearchParams(window.location.search).get(
@@ -28,25 +31,24 @@ export function useAppBootstrap(setScreen: SetScreen) {
 
     const pause = new Promise((resolve) => window.setTimeout(resolve, 2000));
 
-    Promise.all([bootSession(), pause])
-      .then(([next]) => {
+    Promise.all([bootSession(), pause, getOnboarded(), getPrivacyConsent(PRIVACY_POLICY_VERSION)])
+      .then(([next, , onboarded, consented]) => {
         setSession(next);
+        setPrivacyAccepted(consented);
 
         const fragment = window.location.hash.replace(/^#/, "");
         if (hasJoinFragment(fragment)) {
           setJoinToken(joinTokenFromFragment(fragment));
-          setScreen("join");
+          setScreen(consented ? "join" : "onboarding");
           return;
         }
         if (window.sessionStorage.getItem("family-join-success") === "1") {
           window.sessionStorage.removeItem("family-join-success");
           setJoinSucceeded(true);
-          setScreen("family");
+          setScreen(consented ? "family" : "onboarding");
           return;
         }
-        return getOnboarded().then((onboarded) => {
-          setScreen(onboarded ? "home" : "onboarding");
-        });
+        setScreen(onboarded && consented ? "home" : "onboarding");
       })
       .catch(() => {
         setScreen("vk-required");
@@ -57,7 +59,7 @@ export function useAppBootstrap(setScreen: SetScreen) {
     const applyFragment = (location: string) => {
       if (hasJoinFragment(location)) {
         setJoinToken(joinTokenFromFragment(location));
-        setScreen("join");
+        setScreen(privacyAccepted ? "join" : "onboarding");
       }
     };
 
@@ -69,11 +71,20 @@ export function useAppBootstrap(setScreen: SetScreen) {
       offFragment();
       window.removeEventListener("hashchange", onHash);
     };
-  }, [setScreen]);
+  }, [setScreen, privacyAccepted]);
 
-  function finishOnboarding() {
-    void setOnboarded();
-    setScreen("home");
+  async function finishOnboarding() {
+    await Promise.all([
+      setOnboarded(),
+      setPrivacyConsent(PRIVACY_POLICY_VERSION),
+    ]);
+    setPrivacyAccepted(true);
+    if (session) {
+      void recordPrivacyConsent(PRIVACY_POLICY_VERSION, session.user).catch(
+        (error) => console.warn("Privacy consent sync failed", error),
+      );
+    }
+    setScreen(joinToken ? "join" : "home");
   }
 
   async function clearJoinFragment() {
@@ -102,6 +113,7 @@ export function useAppBootstrap(setScreen: SetScreen) {
     session,
     joinToken,
     joinSucceeded,
+    privacyAccepted,
     finishOnboarding,
     completeJoin,
     cancelJoin,

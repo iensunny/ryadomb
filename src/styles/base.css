@@ -84,9 +84,9 @@ button {
   content: "";
   position: absolute;
   z-index: -1;
-  right: -54px;
+  right: 0;
   top: 15%;
-  width: 190px;
+  width: 136px;
   height: 290px;
   background: url("/brand/botanical-branch-watercolor.png") center / contain no-repeat;
   opacity: 0.055;
@@ -262,6 +262,10 @@ button {
 .app-shell[data-screen="home"] .app-main > .screen {
   animation-name: home-screen-enter;
   animation-duration: 400ms;
+}
+
+.app-shell[data-screen="onboarding"] .app-main > .screen {
+  animation: none;
 }
 
 .app-shell:is(

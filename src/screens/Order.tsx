@@ -6,6 +6,7 @@ import type { PreparedPdf } from "../lib/bookPdf";
 import { createPrintRequest } from "../lib/printRequests";
 import { trackEvent } from "../lib/analytics";
 import type { VkUserProfile } from "../vk/session";
+import { PRIVACY_POLICY_URL, PRIVACY_POLICY_VERSION } from "../constants/privacy";
 
 type Copies = 1 | 3 | 5;
 
@@ -40,7 +41,9 @@ export function Order({
 }: Props) {
   const [copies, setCopies] = useState<Copies>(3);
   const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [sent, setSent] = useState(false);
   const [requestId, setRequestId] = useState("");
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -48,7 +51,9 @@ export function Order({
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfMessage, setPdfMessage] = useState("");
   const [preparedPdf, setPreparedPdf] = useState<Exclude<PreparedPdf, null> | null>(null);
-  const canSubmit = Boolean(name.trim() && contact.trim());
+  const canSubmit = Boolean(
+    name.trim() && phone.trim() && email.trim() && privacyAccepted,
+  );
 
   useEffect(() => () => {
     if (preparedPdf) URL.revokeObjectURL(preparedPdf.url);
@@ -77,7 +82,21 @@ export function Order({
     setSubmitBusy(true);
     setSubmitError("");
     try {
-      const result = await createPrintRequest({ bookId, bookTitle, pageCount, cover, copies, name, contact, user });
+      const result = await createPrintRequest({
+        bookId,
+        bookTitle,
+        pageCount,
+        cover,
+        copies,
+        name,
+        phone,
+        email,
+        privacyConsent: {
+          version: PRIVACY_POLICY_VERSION,
+          acceptedAt: new Date().toISOString(),
+        },
+        user,
+      });
       setRequestId(result.id || "");
       setSent(true);
       trackEvent("print_request_created", { screen: "order", properties: { copies, pageCount, cover }, user });
@@ -162,10 +181,23 @@ export function Order({
           <input
             className="field request-field"
             type="tel"
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             placeholder=""
             autoComplete="tel"
+            required
+          />
+        </label>
+        <label className="field-label">
+          <span>Электронная почта</span>
+          <input
+            className="field request-field"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder=""
+            autoComplete="email"
+            required
           />
         </label>
       </div>
@@ -189,6 +221,22 @@ export function Order({
         <strong>Стоимость уточним после заявки</strong>
         <p>Зависит от параметров печати и доставки.</p>
       </div>
+      <label className="privacy-consent order-privacy-consent">
+        <input
+          type="checkbox"
+          checked={privacyAccepted}
+          onChange={(event) => setPrivacyAccepted(event.target.checked)}
+        />
+        <span>
+          Я ознакомился(-ась) с {PRIVACY_POLICY_URL ? (
+            <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
+              Политикой обработки персональных данных
+            </a>
+          ) : (
+            <strong>Политикой обработки персональных данных</strong>
+          )} и согласен(-на) на обработку имени, телефона и электронной почты для оформления заявки на печать.
+        </span>
+      </label>
       {submitError && <p className="form-error" role="alert">{submitError}</p>}
 
       {onDownloadPdf && (

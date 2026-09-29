@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PRIVACY_POLICY_URL } from "../constants/privacy";
 
 const slides = [
   {
@@ -28,6 +29,7 @@ export function Onboarding({ onDone, initialStep = 0 }: Props) {
   );
   const slide = slides[step];
   const last = step === slides.length - 1;
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   return (
     <section className="screen onboarding">
@@ -55,15 +57,34 @@ export function Onboarding({ onDone, initialStep = 0 }: Props) {
             <i key={i} className={i === step ? "active" : ""} />
           ))}
         </div>
+        {last && (
+          <label className="privacy-consent">
+            <input
+              type="checkbox"
+              checked={privacyAccepted}
+              onChange={(event) => setPrivacyAccepted(event.target.checked)}
+            />
+            <span>
+              Я ознакомился(-ась) с {PRIVACY_POLICY_URL ? (
+                <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
+                  Политикой обработки персональных данных
+                </a>
+              ) : (
+                <strong>Политикой обработки персональных данных</strong>
+              )} и согласен(-на) на обработку данных для работы сервиса.
+            </span>
+          </label>
+        )}
         <button
           className="btn-primary onboarding-next"
+          disabled={last && !privacyAccepted}
           onClick={() => (last ? onDone() : setStep((s) => s + 1))}
         >
           <span>{last ? "Начать" : "Далее"}</span>
           <span aria-hidden>→</span>
         </button>
         {!last && (
-          <button className="skip-button" onClick={onDone}>
+          <button className="skip-button" onClick={() => setStep(slides.length - 1)}>
             Пропустить
           </button>
         )}

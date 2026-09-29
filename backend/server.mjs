@@ -88,6 +88,8 @@ async function migrate() {
     ALTER TABLE app_users ADD COLUMN IF NOT EXISTS first_name TEXT NOT NULL DEFAULT '';
     ALTER TABLE app_users ADD COLUMN IF NOT EXISTS last_name TEXT NOT NULL DEFAULT '';
     ALTER TABLE app_users ADD COLUMN IF NOT EXISTS photo_url TEXT;
+    ALTER TABLE app_users ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT;
+    ALTER TABLE app_users ADD COLUMN IF NOT EXISTS privacy_consent_at TIMESTAMPTZ;
     CREATE TABLE IF NOT EXISTS families (
       id UUID PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',
@@ -134,6 +136,10 @@ async function migrate() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+    ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS contact_email TEXT;
+    ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS privacy_policy_version TEXT;
+    ALTER TABLE print_requests ADD COLUMN IF NOT EXISTS privacy_consent_at TIMESTAMPTZ;
     CREATE TABLE IF NOT EXISTS stories (
       id TEXT NOT NULL,
       family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
@@ -197,6 +203,22 @@ async function recordEvent(userId, payload) {
   } finally { db.release(); }
 }
 
+async function recordPrivacyConsent(userId, payload) {
+  const version = String(payload?.version || "").trim().slice(0, 40);
+  const acceptedAt = new Date(payload?.acceptedAt || "");
+  if (!version || Number.isNaN(acceptedAt.getTime())) {
+    throw Object.assign(new Error("valid consent version and date are required"), { status: 400 });
+  }
+  const db = await pool.connect();
+  try {
+    await upsertUser(db, userId, payload?.profile);
+    await db.query(
+      "UPDATE app_users SET privacy_policy_version=$1,privacy_consent_at=$2,updated_at=now() WHERE vk_user_id=$3",
+      [version, acceptedAt.toISOString(), userId],
+    );
+  } finally { db.release(); }
+}
+
 async function createPrintRequest(userId, payload) {
   const db = await pool.connect();
   try {
@@ -204,13 +226,19 @@ async function createPrintRequest(userId, payload) {
     await upsertUser(db, userId, payload?.profile);
     const family = await familyFor(db, userId, true);
     const name = String(payload?.name || "").trim().slice(0, 160);
-    const contact = String(payload?.contact || "").trim().slice(0, 300);
-    if (!name || !contact) throw Object.assign(new Error("name and contact are required"), { status: 400 });
+    const phone = String(payload?.phone || "").trim().slice(0, 100);
+    const email = String(payload?.email || "").trim().slice(0, 254);
+    const consentVersion = String(payload?.privacyConsent?.version || "").trim().slice(0, 40);
+    const consentAt = new Date(payload?.privacyConsent?.acceptedAt || "");
+    if (!name || !phone || !email || !consentVersion || Number.isNaN(consentAt.getTime())) {
+      throw Object.assign(new Error("name, phone, email and privacy consent are required"), { status: 400 });
+    }
+    const contact = `Телефон: ${phone}\nE-mail: ${email}`;
     const id = randomUUID();
     await db.query(
-      `INSERT INTO print_requests(id,family_id,vk_user_id,book_id,book_title,page_count,cover,copies,contact_name,contact_value,comment)
-       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [id, family.id, userId, String(payload?.bookId || "family-book").slice(0, 160), String(payload?.bookTitle || "Семейная книга").slice(0, 300), Math.max(0, Number(payload?.pageCount) || 0), String(payload?.cover || "").slice(0, 80), Math.max(1, Math.min(100, Number(payload?.copies) || 1)), name, contact, String(payload?.comment || "").slice(0, 2000)],
+      `INSERT INTO print_requests(id,family_id,vk_user_id,book_id,book_title,page_count,cover,copies,contact_name,contact_value,contact_phone,contact_email,privacy_policy_version,privacy_consent_at,comment)
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [id, family.id, userId, String(payload?.bookId || "family-book").slice(0, 160), String(payload?.bookTitle || "Семейная книга").slice(0, 300), Math.max(0, Number(payload?.pageCount) || 0), String(payload?.cover || "").slice(0, 80), Math.max(1, Math.min(100, Number(payload?.copies) || 1)), name, contact, phone, email, consentVersion, consentAt.toISOString(), String(payload?.comment || "").slice(0, 2000)],
     );
     await db.query("COMMIT");
     return { id, status: "new" };
@@ -489,6 +517,10 @@ createServer(async (request, response) => {
     if (url.pathname === "/api/analytics/events" && request.method === "POST") {
       await recordEvent(userId, await body(request));
       return send(response, 202, { ok: true });
+    }
+    if (url.pathname === "/api/privacy-consent" && request.method === "POST") {
+      await recordPrivacyConsent(userId, await body(request));
+      return send(response, 201, { ok: true });
     }
     if (url.pathname === "/api/print-requests" && request.method === "POST") {
       return send(response, 201, await createPrintRequest(userId, await body(request)));

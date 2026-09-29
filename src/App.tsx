@@ -41,7 +41,7 @@ export function App() {
     openProfile,
     openStory,
   } = useAppNavigation();
-  const { session, joinToken, joinSucceeded, finishOnboarding, completeJoin, cancelJoin } =
+  const { session, joinToken, joinSucceeded, privacyAccepted, finishOnboarding, completeJoin, cancelJoin } =
     useAppBootstrap(setScreen);
   const desktop = useVkLayout(session);
   const {
@@ -60,7 +60,7 @@ export function App() {
     updateBookPage,
     removeBookPage,
     deleteFamily,
-  } = useStoriesBook(session, screen === "join");
+  } = useStoriesBook(session, !privacyAccepted || screen === "join");
 
   const familyName = session
     ? remoteFamilyName || familyTitle(session.user)
@@ -75,19 +75,19 @@ export function App() {
   );
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !privacyAccepted) return;
     trackEvent("screen_view", { screen, user: session.user });
     if (screen === "join") trackEvent("invite_opened", { screen, user: session.user });
     if (screen === "order") trackEvent("print_request_opened", { screen, properties: { pageCount: activeBook.items.length }, user: session.user });
-  }, [screen, session]);
+  }, [screen, session, privacyAccepted]);
 
   useEffect(() => {
-    if (session) {
+    if (session && privacyAccepted) {
       trackEvent("app_open", { screen, properties: { platform: session.launch.platform || "unknown" }, user: session.user });
       const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
       trackEvent("performance_sample", { screen, properties: { loadMs: Math.round(navigation?.duration || performance.now()) }, user: session.user });
     }
-  }, [session]);
+  }, [session, privacyAccepted]);
 
   const nav = (
     <>
@@ -151,7 +151,7 @@ export function App() {
             }
             onDone={() => {
               if (session) trackEvent("onboarding_completed", { screen: "onboarding", user: session.user });
-              finishOnboarding();
+              void finishOnboarding();
             }}
           />
         )}
@@ -318,7 +318,7 @@ export function App() {
             }
           />
         )}
-        {showBottomNav && (
+        {showBottomNav && !desktop && (
           <nav className="bottom-nav" aria-label="Основная навигация">
             {nav}
           </nav>

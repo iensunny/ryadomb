@@ -10,7 +10,12 @@ export async function createPrintRequest(input: {
   cover: CoverKind;
   copies: number;
   name: string;
-  contact: string;
+  phone: string;
+  email: string;
+  privacyConsent: {
+    version: string;
+    acceptedAt: string;
+  };
   comment?: string;
   user: VkUserProfile;
 }) {
@@ -23,7 +28,15 @@ export async function createPrintRequest(input: {
   const response = await fetch(`${endpoint}/api/print-requests`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-vk-launch-params": window.location.search.slice(1) },
-    body: JSON.stringify({ ...input, profile: { firstName: input.user.firstName, lastName: input.user.lastName, photoUrl: input.user.photoUrl } }),
+    body: JSON.stringify({
+      ...input,
+      contact: `Телефон: ${input.phone}\nE-mail: ${input.email}`,
+      profile: {
+        firstName: input.user.firstName,
+        lastName: input.user.lastName,
+        photoUrl: input.user.photoUrl,
+      },
+    }),
   });
   const value = await response.json().catch(() => ({})) as { id?: string; status?: string; error?: string };
   if (!response.ok) throw new Error(value.error || "Print request failed");

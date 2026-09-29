@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { FamilyPerson } from "../domain/family";
 import { Avatar } from "../ui/Avatar";
 import type { VkUserProfile } from "../vk/session";
@@ -24,6 +25,15 @@ export function Family({
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+
+  useEffect(() => {
+    if (!deleteOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [deleteOpen]);
   return (
     <section className="screen screen-scroll with-nav">
       <header className="page-head">
@@ -95,10 +105,10 @@ export function Family({
         <button className="btn-danger" onClick={() => setDeleteOpen(true)}>Удалить семью</button>
       </section>
 
-      {deleteOpen && (
+      {deleteOpen && createPortal(
         <div className="modal-backdrop" role="presentation">
-          <section className="invite-modal" role="dialog" aria-modal="true">
-            <h2>Удалить семью?</h2>
+          <section className="invite-modal" role="dialog" aria-modal="true" aria-labelledby="delete-family-title">
+            <h2 id="delete-family-title">Удалить семью?</h2>
             <p>Для подтверждения введите название семьи: <strong>{familyName}</strong></p>
             <input className="field" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoFocus />
             <div className="modal-actions-row">
@@ -106,7 +116,8 @@ export function Family({
               <button className="btn-danger" disabled={confirmation.trim() !== familyName} onClick={onDeleteFamily}>Удалить навсегда</button>
             </div>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );

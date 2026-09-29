@@ -927,7 +927,7 @@
   display: grid;
   place-items: end center;
   padding: 18px;
-  z-index: 5;
+  z-index: 1000;
   animation: modal-shade-enter 220ms ease both;
 }
 

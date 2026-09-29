@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { BackIcon, MicIcon } from "../icons";
 import type { Story } from "../domain/story";
 import { FormattedStoryBody } from "../ui/FormattedStoryBody";
@@ -22,20 +22,7 @@ export function StoryDetail({
   onEdit,
   onDelete,
 }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onPointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [menuOpen]);
 
   return (
     <section className="screen story-detail-screen">
@@ -44,31 +31,6 @@ export function StoryDetail({
           <BackIcon />
         </button>
         <h1>История</h1>
-        <div className="more-menu" ref={menuRef}>
-          <button
-            className="more-button"
-            aria-label="Ещё действия"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            ⋯
-          </button>
-          {menuOpen && (
-            <div className="more-menu-panel" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                className="more-menu-danger"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setConfirmDelete(true);
-                }}
-              >
-                Удалить историю
-              </button>
-            </div>
-          )}
-        </div>
       </header>
 
       <article className="detail-card">
@@ -115,6 +77,13 @@ export function StoryDetail({
           {inBook ? `Убрать из «${bookTitle}»` : `Добавить в «${bookTitle}»`}
         </button>
       </div>
+      <button
+        type="button"
+        className="delete-story-action"
+        onClick={() => setConfirmDelete(true)}
+      >
+        Удалить историю
+      </button>
 
       {confirmDelete && (
         <div className="modal-backdrop" role="presentation">

@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Book, CoverKind } from "../domain/book";
 import type { Story } from "../domain/story";
-import { emptyBook, seedBooks } from "../fixtures/books";
+import { emptyBook } from "../fixtures/books";
 import { familyMembers } from "../fixtures/family";
-import { seedStories } from "../fixtures/stories";
-import { buildAllBookStories } from "../lib/catalogStories";
 import { buildFamilyMembers } from "../lib/familyMembers";
 import { familyApiEnabled, readFamily } from "../lib/familyApi";
 import { usingBridgeMock } from "../vk/bridge";
@@ -13,13 +11,17 @@ import { readRemoteState, remoteStateEnabled, writeRemoteState } from "../lib/re
 
 export type StoryDraft = Omit<Story, "id" | "author" | "when">;
 
-const initialStories = seedStories;
-const initialBook = usingBridgeMock ? seedBooks[0] : emptyBook;
+const initialStories: Story[] = [];
+const initialBook = emptyBook;
 const STORIES_KEY = "family-stories-data-v1";
 const BOOK_KEY = "family-stories-book-v1";
 const DATA_VERSION_KEY = "family-stories-data-version";
-const DATA_VERSION = "4";
+const DATA_VERSION = "5";
 const LEGACY_DEMO_IDS = new Set(["2", "4"]);
+
+function isBundledStoryId(id: string) {
+  return id.startsWith("demo-") || id.startsWith("rhyme-") || id.startsWith("tale-") || LEGACY_DEMO_IDS.has(id);
+}
 
 function readStored<T>(key: string, fallback: T): T {
   try {
@@ -36,14 +38,7 @@ function readInitialStories(): Story[] {
     return stored;
   }
 
-  const cleanDemoPestushka = seedStories.find((story) => story.id === "demo-pestushka");
-  const cleaned = stored.map((story) => story.id === "demo-pestushka" && cleanDemoPestushka ? cleanDemoPestushka : story);
-  const userStories = cleaned.filter((story) => !LEGACY_DEMO_IDS.has(story.id));
-  const existingIds = new Set(userStories.map((story) => story.id));
-  const migrated = [
-    ...seedStories.filter((story) => !existingIds.has(story.id)),
-    ...userStories,
-  ];
+  const migrated = stored.filter((story) => !isBundledStoryId(story.id));
   window.localStorage.setItem(DATA_VERSION_KEY, DATA_VERSION);
   window.localStorage.setItem(STORIES_KEY, JSON.stringify(migrated));
   return migrated;
@@ -53,12 +48,11 @@ function readInitialBook(): Book {
   const stored = readStored<Book & { storyIds?: string[] }>(BOOK_KEY, initialBook);
   // Previous fixed section dividers are intentionally not migrated: custom pages replace them.
   const ids = stored.items
-    ? stored.items.filter((item) => item.type !== "story" || !LEGACY_DEMO_IDS.has(item.storyId))
-    : (stored.storyIds ?? []).filter((id) => !LEGACY_DEMO_IDS.has(id)).map((storyId) => ({ id: `story-${storyId}`, type: "story" as const, storyId }));
-  const currentIds = new Set(ids.filter((item) => item.type === "story").map((item) => item.storyId));
+    ? stored.items.filter((item) => item.type !== "story" || !isBundledStoryId(item.storyId))
+    : (stored.storyIds ?? []).filter((id) => !isBundledStoryId(id)).map((storyId) => ({ id: `story-${storyId}`, type: "story" as const, storyId }));
   return {
     ...stored,
-    items: [...seedStories.filter((story) => !currentIds.has(story.id)).map((story) => ({ id: `story-${story.id}`, type: "story" as const, storyId: story.id })), ...ids],
+    items: ids,
   };
 }
 
@@ -87,8 +81,13 @@ export function useStoriesBook(session: AppSession | null, pauseRemote = false) 
     readRemoteState().then(async (state) => {
       if (cancelled) return;
       if (state) {
-        setStories(state.stories);
-        setBook(state.book);
+        setStories(state.stories.filter((story) => !isBundledStoryId(story.id)));
+        setBook({
+          ...state.book,
+          items: state.book.items.filter(
+            (item) => item.type !== "story" || !isBundledStoryId(item.storyId),
+          ),
+        });
       } else {
         await writeRemoteState({ stories, book });
       }
@@ -139,7 +138,7 @@ export function useStoriesBook(session: AppSession | null, pauseRemote = false) 
 
   const members = useMemo(() => remoteFamily?.members ?? buildFamilyMembers(session?.user, familyMembers, usingBridgeMock), [remoteFamily, session]);
 
-  const allBookStories = useMemo(() => buildAllBookStories(stories), [stories]);
+  const allBookStories = stories;
 
   function toggleBook(storyId: string) {
     setBook((current) => ({
