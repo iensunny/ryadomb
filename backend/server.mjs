@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import pg from "pg";
 
 const required = ["DATABASE_URL", "S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY", "VK_APP_SECRET"];
@@ -30,7 +30,7 @@ function cors(request, response) {
     response.setHeader("access-control-allow-origin", origin);
     response.setHeader("vary", "Origin");
   }
-  response.setHeader("access-control-allow-methods", "GET,POST,PUT,OPTIONS");
+  response.setHeader("access-control-allow-methods", "GET,POST,PUT,DELETE,OPTIONS");
   response.setHeader("access-control-allow-headers", "content-type,x-vk-launch-params");
 }
 
@@ -72,6 +72,23 @@ async function getObject(key) {
 
 async function putObject(key, value, contentType) {
   await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: value, ContentType: contentType }));
+}
+
+function collectS3Keys(value, keys = new Set()) {
+  if (typeof value === "string" && value.startsWith("s3://")) keys.add(value.slice(5));
+  else if (Array.isArray(value)) value.forEach((item) => collectS3Keys(item, keys));
+  else if (value && typeof value === "object") Object.values(value).forEach((item) => collectS3Keys(item, keys));
+  return keys;
+}
+
+async function deleteObjects(keys) {
+  const values = [...keys];
+  for (let index = 0; index < values.length; index += 1000) {
+    await client.send(new DeleteObjectsCommand({
+      Bucket: bucket,
+      Delete: { Objects: values.slice(index, index + 1000).map((Key) => ({ Key })), Quiet: true },
+    }));
+  }
 }
 
 async function migrate() {
@@ -336,6 +353,78 @@ async function readFamily(userId) {
   } finally { db.release(); }
 }
 
+async function deleteFamily(userId) {
+  const db = await pool.connect();
+  const mediaKeys = new Set();
+  try {
+    await db.query("BEGIN");
+    const membershipResult = await db.query(
+      "SELECT family_id,role FROM family_members WHERE vk_user_id=$1 ORDER BY joined_at LIMIT 1 FOR UPDATE",
+      [userId],
+    );
+    const membership = membershipResult.rows[0];
+    if (!membership) throw Object.assign(new Error("family not found"), { status: 404, code: "FAMILY_NOT_FOUND" });
+    if (membership.role !== "owner") throw Object.assign(new Error("only the family owner can delete it"), { status: 403, code: "OWNER_REQUIRED" });
+    const mediaRows = await db.query(
+      `SELECT data FROM stories WHERE family_id=$1
+       UNION ALL SELECT data FROM books WHERE family_id=$1
+       UNION ALL SELECT data FROM book_items WHERE family_id=$1`,
+      [membership.family_id],
+    );
+    mediaRows.rows.forEach((row) => collectS3Keys(row.data, mediaKeys));
+    await db.query("DELETE FROM families WHERE id=$1", [membership.family_id]);
+    await db.query("COMMIT");
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally { db.release(); }
+  if (mediaKeys.size) {
+    try { await deleteObjects(mediaKeys); }
+    catch (error) { console.error("Family media cleanup failed", error); }
+  }
+  return { ok: true };
+}
+
+async function leaveFamily(userId) {
+  const result = await pool.query(
+    `DELETE FROM family_members
+     WHERE vk_user_id=$1 AND role<>'owner'
+     RETURNING family_id`,
+    [userId],
+  );
+  if (!result.rows[0]) {
+    const membership = await pool.query("SELECT role FROM family_members WHERE vk_user_id=$1 ORDER BY joined_at LIMIT 1", [userId]);
+    if (!membership.rows[0]) throw Object.assign(new Error("family not found"), { status: 404, code: "FAMILY_NOT_FOUND" });
+    throw Object.assign(new Error("the owner must delete the family instead"), { status: 409, code: "OWNER_CANNOT_LEAVE" });
+  }
+  return { ok: true };
+}
+
+async function removeFamilyMember(userId, memberId) {
+  if (!Number.isSafeInteger(memberId) || memberId <= 0) throw Object.assign(new Error("invalid member"), { status: 400, code: "INVALID_MEMBER" });
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+    const ownerResult = await db.query(
+      "SELECT family_id FROM family_members WHERE vk_user_id=$1 AND role='owner' ORDER BY joined_at LIMIT 1 FOR UPDATE",
+      [userId],
+    );
+    const owner = ownerResult.rows[0];
+    if (!owner) throw Object.assign(new Error("only the family owner can remove members"), { status: 403, code: "OWNER_REQUIRED" });
+    if (memberId === userId) throw Object.assign(new Error("the owner cannot remove themselves"), { status: 409, code: "OWNER_CANNOT_REMOVE_SELF" });
+    const removed = await db.query(
+      "DELETE FROM family_members WHERE family_id=$1 AND vk_user_id=$2 AND role<>'owner' RETURNING vk_user_id",
+      [owner.family_id, memberId],
+    );
+    if (!removed.rows[0]) throw Object.assign(new Error("family member not found"), { status: 404, code: "MEMBER_NOT_FOUND" });
+    await db.query("COMMIT");
+    return { ok: true };
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally { db.release(); }
+}
+
 function tokenHash(token) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -507,6 +596,16 @@ createServer(async (request, response) => {
   try {
     if (url.pathname === "/api/family" && request.method === "GET") {
       return send(response, 200, { family: await readFamily(userId) });
+    }
+    if (url.pathname === "/api/family" && request.method === "DELETE") {
+      return send(response, 200, await deleteFamily(userId));
+    }
+    if (url.pathname === "/api/family/leave" && request.method === "POST") {
+      return send(response, 200, await leaveFamily(userId));
+    }
+    const memberMatch = url.pathname.match(/^\/api\/family\/members\/(\d+)$/);
+    if (memberMatch && request.method === "DELETE") {
+      return send(response, 200, await removeFamilyMember(userId, Number(memberMatch[1])));
     }
     if (url.pathname === "/api/family/invite" && request.method === "POST") {
       return send(response, 201, await createInvite(userId, await body(request)));

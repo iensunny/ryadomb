@@ -45,6 +45,7 @@ export async function readFamily(userId: number): Promise<{ name: string; member
       initials: `${member.first_name.at(0) ?? ""}${member.last_name.at(0) ?? ""}`.toUpperCase() || "VK",
       photoUrl: member.photo_url,
       isYou: String(member.vk_user_id) === String(userId),
+      isOwner: member.role === "owner",
     })),
   };
 }
@@ -63,4 +64,19 @@ export async function joinRemoteFamily(token: string, user: VkUserProfile) {
     method: "POST",
     body: JSON.stringify({ token, profile: profile(user) }),
   });
+}
+
+export async function deleteRemoteFamily() {
+  if (!familyApiEnabled()) return { ok: true };
+  return api<{ ok: true }>("/api/family", { method: "DELETE" });
+}
+
+export async function leaveRemoteFamily() {
+  if (!familyApiEnabled()) return { ok: true };
+  return api<{ ok: true }>("/api/family/leave", { method: "POST" });
+}
+
+export async function removeRemoteFamilyMember(memberId: string) {
+  if (!familyApiEnabled()) return { ok: true };
+  return api<{ ok: true }>(`/api/family/members/${encodeURIComponent(memberId)}`, { method: "DELETE" });
 }

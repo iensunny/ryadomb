@@ -21,7 +21,7 @@ import { StoryDetail } from "./screens/StoryDetail";
 import { downloadBookPdf } from "./lib/bookPdf";
 import { usingBridgeMock } from "./vk/bridge";
 import { familyTitle, fullName } from "./vk/session";
-import { joinRemoteFamily } from "./lib/familyApi";
+import { deleteRemoteFamily, joinRemoteFamily, leaveRemoteFamily, removeRemoteFamilyMember } from "./lib/familyApi";
 import { trackEvent } from "./lib/analytics";
 
 export function App() {
@@ -226,9 +226,19 @@ export function App() {
             members={members}
             onInvite={() => setInviteOpen(true)}
             onOpenProfile={openProfile}
-            onDeleteFamily={() => {
+            onDeleteFamily={async () => {
+              await deleteRemoteFamily();
               deleteFamily();
               setScreen("onboarding");
+            }}
+            onLeaveFamily={async () => {
+              await leaveRemoteFamily();
+              deleteFamily();
+              setScreen("onboarding");
+            }}
+            onRemoveMember={async (memberId) => {
+              await removeRemoteFamilyMember(memberId);
+              window.location.reload();
             }}
             joinedRecently={joinSucceeded}
           />

@@ -16,6 +16,7 @@ export function buildFamilyMembers(
     initials: `${user.firstName.at(0) ?? ""}${user.lastName.at(0) ?? ""}`,
     photoUrl: user.photoUrl,
     isYou: true,
+    isOwner: true,
   };
 
   if (!useMockMembers) return [self];

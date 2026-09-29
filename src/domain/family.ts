@@ -5,4 +5,5 @@ export type FamilyPerson = {
   initials: string;
   photoUrl?: string;
   isYou?: boolean;
+  isOwner?: boolean;
 };

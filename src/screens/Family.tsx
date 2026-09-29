@@ -10,7 +10,9 @@ type Props = {
   members: FamilyPerson[];
   onInvite: () => void;
   onOpenProfile: () => void;
-  onDeleteFamily: () => void;
+  onDeleteFamily: () => Promise<void>;
+  onLeaveFamily: () => Promise<void>;
+  onRemoveMember: (memberId: string) => Promise<void>;
   joinedRecently?: boolean;
 };
 
@@ -21,10 +23,29 @@ export function Family({
   onInvite,
   onOpenProfile,
   onDeleteFamily,
+  onLeaveFamily,
+  onRemoveMember,
   joinedRecently,
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<FamilyPerson | null>(null);
+  const [working, setWorking] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const currentMember = members.find((member) => member.isYou);
+  const isOwner = Boolean(currentMember?.isOwner);
+
+  async function runAction(action: () => Promise<void>) {
+    setWorking(true);
+    setActionError("");
+    try {
+      await action();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Не удалось выполнить действие");
+      setWorking(false);
+    }
+  }
 
   useEffect(() => {
     if (!deleteOpen) return;
@@ -95,14 +116,29 @@ export function Family({
               </h3>
               <p>{member.role}</p>
             </div>
+            {isOwner && !member.isYou && (
+              <button className="member-remove-button" onClick={() => setMemberToRemove(member)}>
+                Исключить
+              </button>
+            )}
           </article>
         ))}
       </div>
 
       <section className="family-danger-zone">
         <h2>Управление семьёй</h2>
-        <p>Удалить семью может только её владелец. Истории и книга будут удалены без возможности восстановления.</p>
-        <button className="btn-danger" onClick={() => setDeleteOpen(true)}>Удалить семью</button>
+        {isOwner ? (
+          <>
+            <p>Удалить семью может только её владелец. Участники будут исключены, а истории, книга и фотографии удалены без возможности восстановления.</p>
+            <button className="btn-danger" onClick={() => setDeleteOpen(true)}>Удалить семью</button>
+          </>
+        ) : (
+          <>
+            <p>После выхода вы потеряете доступ к общей книге и материалам этой семьи. Ваши материалы останутся у семьи.</p>
+            <button className="btn-danger" onClick={() => setLeaveOpen(true)}>Покинуть семью</button>
+          </>
+        )}
+        {actionError && <p className="form-error" role="alert">{actionError}</p>}
       </section>
 
       {deleteOpen && createPortal(
@@ -111,9 +147,46 @@ export function Family({
             <h2 id="delete-family-title">Удалить семью?</h2>
             <p>Для подтверждения введите название семьи: <strong>{familyName}</strong></p>
             <input className="field" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoFocus />
+            {actionError && <p className="form-error" role="alert">{actionError}</p>}
             <div className="modal-actions-row">
               <button className="btn-secondary" onClick={() => setDeleteOpen(false)}>Отмена</button>
-              <button className="btn-danger" disabled={confirmation.trim() !== familyName} onClick={onDeleteFamily}>Удалить навсегда</button>
+              <button className="btn-danger" disabled={working || confirmation.trim() !== familyName} onClick={() => void runAction(onDeleteFamily)}>
+                {working ? "Удаляем…" : "Удалить навсегда"}
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
+
+      {leaveOpen && createPortal(
+        <div className="modal-backdrop" role="presentation">
+          <section className="invite-modal" role="dialog" aria-modal="true" aria-labelledby="leave-family-title">
+            <h2 id="leave-family-title">Покинуть семью?</h2>
+            <p>Вы больше не сможете просматривать и изменять материалы семьи «{familyName}».</p>
+            {actionError && <p className="form-error" role="alert">{actionError}</p>}
+            <div className="modal-actions-row">
+              <button className="btn-secondary" disabled={working} onClick={() => setLeaveOpen(false)}>Отмена</button>
+              <button className="btn-danger" disabled={working} onClick={() => void runAction(onLeaveFamily)}>
+                {working ? "Выходим…" : "Покинуть семью"}
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body,
+      )}
+
+      {memberToRemove && createPortal(
+        <div className="modal-backdrop" role="presentation">
+          <section className="invite-modal" role="dialog" aria-modal="true" aria-labelledby="remove-member-title">
+            <h2 id="remove-member-title">Исключить участника?</h2>
+            <p>{memberToRemove.name} потеряет доступ к общей книге и материалам семьи.</p>
+            {actionError && <p className="form-error" role="alert">{actionError}</p>}
+            <div className="modal-actions-row">
+              <button className="btn-secondary" disabled={working} onClick={() => setMemberToRemove(null)}>Отмена</button>
+              <button className="btn-danger" disabled={working} onClick={() => void runAction(() => onRemoveMember(memberToRemove.id))}>
+                {working ? "Исключаем…" : "Исключить"}
+              </button>
             </div>
           </section>
         </div>,
